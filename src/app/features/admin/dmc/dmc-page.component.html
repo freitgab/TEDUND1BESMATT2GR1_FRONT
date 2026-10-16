@@ -1,0 +1,144 @@
+<header class="page-header">
+  <div>
+    <h1>Distritos de Monitoramento Climático (DMC)</h1>
+    <p class="page-subtitle">Cada distrito é vinculado obrigatoriamente a um Órgão Gestor (OGM) e possui até 1 meteorologista-chefe.</p>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="novo()">+ Novo DMC</button>
+</header>
+
+<div class="toolbar">
+  <input class="toolbar__search" type="search" placeholder="Buscar por nome, OGM pai, meteorologista-chefe..."
+         [value]="busca()" (input)="busca.set(inputValue($event))" aria-label="Buscar DMC" />
+
+  <select class="toolbar__select" [value]="ogmFiltro()" (change)="ogmFiltro.set($any(inputValue($event) === 'TODOS' ? 'TODOS' : +inputValue($event)))" aria-label="Filtrar por OGM">
+    <option value="TODOS">Todos os Órgãos Gestores</option>
+    @for (ogm of ogms(); track ogm.id) {
+      <option [value]="ogm.id">{{ ogm.sigla }}</option>
+    }
+  </select>
+
+  <select class="toolbar__select" [value]="statusFiltro()" (change)="statusFiltro.set($any(inputValue($event)))" aria-label="Filtrar por status">
+    <option value="TODOS">Todos os status</option>
+    <option value="ATIVO">Somente ativos</option>
+    <option value="INATIVO">Somente inativos</option>
+  </select>
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} · {{ totalAtivos() }} ativos</span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando distritos climáticos...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhum distrito encontrado com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome do Distrito</th>
+            <th>Órgão Gestor Pai (OGM)</th>
+            <th>Meteorologista-Chefe</th>
+            <th>Contato Central</th>
+            <th>Data Cadastro</th>
+            <th>Status</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (dmc of filtrados(); track dmc.id) {
+            <tr [class.row--inativo]="dmc.status !== 'ATIVO'">
+              <td><strong>{{ dmc.nome }}</strong></td>
+              <td>
+                <span class="chip" [title]="dmc.orgaoGestorNome ?? 'OGM #' + dmc.orgaoGestorId">
+                  {{ dmc.orgaoGestorNome ?? 'OGM #' + dmc.orgaoGestorId }}
+                </span>
+              </td>
+              <td>{{ dmc.meteorologistaChefeNome ?? 'Não atribuído' }}</td>
+              <td class="cell-stack">
+                <span>{{ dmc.emailCentral ?? '—' }}</span>
+                <small>{{ dmc.telefoneCentral ?? '' }}</small>
+              </td>
+              <td>{{ dmc.dataCadastro | dataBr }}</td>
+              <td><app-status-badge [status]="dmc.status" /></td>
+              <td class="table__actions">
+                <button type="button" class="btn btn--sm btn--secondary" (click)="editar(dmc)" [disabled]="dmc.status !== 'ATIVO'">Editar</button>
+                <button type="button" class="btn btn--sm btn--danger-outline" (click)="toInactivate.set(dmc)" [disabled]="dmc.status !== 'ATIVO'">Inativar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Cadastro / Edição -->
+<app-modal [open]="formOpen()" [title]="editing() ? 'Editar Distrito: ' + editing()!.nome : 'Novo Distrito de Monitoramento (DMC)'"
+           size="normal" [busy]="saving()" (closed)="fecharFormulario()">
+  <form id="dmc-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="field">
+      <label for="dmc-nome">Nome do Distrito *</label>
+      <input id="dmc-nome" formControlName="nome" placeholder="Ex.: 5º Distrito de Meteorologia - Bahia (5º DISME)" [class.invalid]="invalid(form.controls.nome)" />
+      @if (invalid(form.controls.nome)) { <small class="field__error">Informe o nome do distrito (até 160 caracteres).</small> }
+    </div>
+
+    <div class="field">
+      <label for="dmc-ogm">Órgão Gestor Vinculado (OGM) *</label>
+      <select id="dmc-ogm" formControlName="orgaoGestorId" [class.invalid]="invalid(form.controls.orgaoGestorId)">
+        <option [ngValue]="null" disabled>Selecione o OGM...</option>
+        @for (ogm of ogmsAtivos(); track ogm.id) {
+          <option [ngValue]="ogm.id">{{ ogm.sigla }} — {{ ogm.nome }}</option>
+        }
+      </select>
+      @if (invalid(form.controls.orgaoGestorId)) { <small class="field__error">Selecione o Órgão Gestor obrigatório.</small> }
+    </div>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="dmc-email">E-mail Central *</label>
+        <input id="dmc-email" type="email" formControlName="emailCentral" placeholder="disme.ba@inmet.gov.br" [class.invalid]="invalid(form.controls.emailCentral)" />
+        @if (invalid(form.controls.emailCentral)) { <small class="field__error">Informe um e-mail válido.</small> }
+      </div>
+      <div class="field">
+        <label for="dmc-tel">Telefone Central *</label>
+        <input id="dmc-tel" type="tel" formControlName="telefoneCentral" placeholder="(71) 3245-1234" [class.invalid]="invalid(form.controls.telefoneCentral)" />
+        @if (invalid(form.controls.telefoneCentral)) { <small class="field__error">Informe o telefone de contato.</small> }
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="dmc-chefe">Meteorologista-Chefe (Opcional)</label>
+      <select id="dmc-chefe" formControlName="meteorologistaChefeId">
+        <option [ngValue]="null">Nenhum responsável atribuído</option>
+        @for (chefe of chefeOptions(); track chefe.id) {
+          <option [ngValue]="chefe.id" [disabled]="!!chefe.ocupadoPor">
+            {{ chefe.nome }} (Matrícula: {{ chefe.matricula }}) {{ chefe.ocupadoPor ? '— Já chefia ' + chefe.ocupadoPor : '' }}
+          </option>
+        }
+      </select>
+      <small class="field__hint">Regra RN003: Um DMC pode possuir apenas 1 meteorologista-chefe ativo cadastrado.</small>
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharFormulario()" [disabled]="saving()">Cancelar</button>
+    <button type="submit" form="dmc-form" class="btn btn--primary" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : editing() ? 'Salvar alterações' : 'Cadastrar DMC' }}
+    </button>
+  </ng-container>
+</app-modal>
+
+<!-- Confirmação de inativação -->
+<app-confirm-dialog [open]="!!toInactivate()" title="Inativar DMC" confirmLabel="Inativar DMC" [busy]="inactivating()"
+                    [message]="'Deseja inativar o distrito ' + (toInactivate()?.nome ?? '') + '?'"
+                    note="A inativação bloqueia a criação de novas redes subordinadas. DMCs com redes ou técnicos ativos vinculados não podem ser inativados."
+                    (confirmed)="inativar()" (cancelled)="toInactivate.set(null)" />

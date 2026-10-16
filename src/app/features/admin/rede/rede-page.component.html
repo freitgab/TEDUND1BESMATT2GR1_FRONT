@@ -1,0 +1,154 @@
+<header class="page-header">
+  <div>
+    <h1>Redes de Monitoramento Climático</h1>
+    <p class="page-subtitle">Toda rede é atrelada a um único DMC e agrupa tipos específicos de monitoramento climático e estações.</p>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="novo()">+ Nova Rede</button>
+</header>
+
+<div class="toolbar">
+  <input class="toolbar__search" type="search" placeholder="Buscar por sigla, descrição, DMC pai, responsável..."
+         [value]="busca()" (input)="busca.set(inputValue($event))" aria-label="Buscar Rede" />
+
+  <select class="toolbar__select" [value]="dmcFiltro()" (change)="dmcFiltro.set($any(inputValue($event) === 'TODOS' ? 'TODOS' : +inputValue($event)))" aria-label="Filtrar por DMC">
+    <option value="TODOS">Todos os Distritos (DMC)</option>
+    @for (dmc of dmcs(); track dmc.id) {
+      <option [value]="dmc.id">{{ dmc.nome }}</option>
+    }
+  </select>
+
+  <select class="toolbar__select" [value]="statusFiltro()" (change)="statusFiltro.set($any(inputValue($event)))" aria-label="Filtrar por status">
+    <option value="TODOS">Todos os status</option>
+    <option value="ATIVO">Somente ativas</option>
+    <option value="INATIVO">Somente inativas</option>
+  </select>
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} · {{ totalAtivos() }} ativas</span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando redes de monitoramento...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhuma rede encontrada com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Sigla</th>
+            <th>Descrição da Rede</th>
+            <th>Distrito Vinculado (DMC)</th>
+            <th>Tipos de Monitoramento</th>
+            <th>Responsável</th>
+            <th>Cadastro</th>
+            <th>Status</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rede of filtrados(); track rede.id) {
+            <tr [class.row--inativo]="rede.status !== 'ATIVO'">
+              <td><strong>{{ rede.sigla }}</strong></td>
+              <td>{{ rede.descricao }}</td>
+              <td>
+                <span class="chip" [title]="rede.distritoNome ?? 'DMC #' + rede.distritoId">
+                  {{ rede.distritoNome ?? 'DMC #' + rede.distritoId }}
+                </span>
+              </td>
+              <td>
+                <div class="chips">
+                  @for (tipo of rede.tiposMonitoramento; track tipo) {
+                    <span class="chip">{{ tipo }}</span>
+                  }
+                </div>
+              </td>
+              <td>{{ rede.meteorologistaResponsavelNome ?? 'Não atribuído' }}</td>
+              <td>{{ rede.dataCadastro | dataBr }}</td>
+              <td><app-status-badge [status]="rede.status" /></td>
+              <td class="table__actions">
+                <button type="button" class="btn btn--sm btn--secondary" (click)="editar(rede)" [disabled]="rede.status !== 'ATIVO'">Editar</button>
+                <button type="button" class="btn btn--sm btn--danger-outline" (click)="toInactivate.set(rede)" [disabled]="rede.status !== 'ATIVO'">Inativar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Cadastro / Edição -->
+<app-modal [open]="formOpen()" [title]="editing() ? 'Editar Rede ' + editing()!.sigla : 'Nova Rede de Monitoramento'"
+           size="wide" [busy]="saving()" (closed)="fecharFormulario()">
+  <form id="rede-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="rede-sigla">Sigla da Rede *</label>
+        <input id="rede-sigla" formControlName="sigla" placeholder="Ex.: REAM-REC" [class.invalid]="invalid(form.controls.sigla)" />
+        @if (invalid(form.controls.sigla)) { <small class="field__error">Informe a sigla (até 40 caracteres).</small> }
+      </div>
+
+      <div class="field">
+        <label for="rede-distrito">Distrito Pertencente (DMC) *</label>
+        <select id="rede-distrito" formControlName="distritoId" [class.invalid]="invalid(form.controls.distritoId)">
+          <option [ngValue]="null" disabled>Selecione o DMC...</option>
+          @for (dmc of dmcsAtivos(); track dmc.id) {
+            <option [ngValue]="dmc.id">{{ dmc.nome }}</option>
+          }
+        </select>
+        @if (invalid(form.controls.distritoId)) { <small class="field__error">Selecione o DMC obrigatório.</small> }
+      </div>
+
+      <div class="field field--span2">
+        <label for="rede-descricao">Descrição da Rede *</label>
+        <textarea id="rede-descricao" formControlName="descricao" placeholder="Descreva os objetivos e abrangência da rede..." [class.invalid]="invalid(form.controls.descricao)"></textarea>
+        @if (invalid(form.controls.descricao)) { <small class="field__error">Informe a descrição (até 500 caracteres).</small> }
+      </div>
+
+      <div class="field field--span2">
+        <label for="rede-resp">Meteorologista Responsável (Opcional)</label>
+        <select id="rede-resp" formControlName="meteorologistaResponsavelId">
+          <option [ngValue]="null">Nenhum responsável atribuído</option>
+          @for (tec of tecnicosAtivos(); track tec.id) {
+            <option [ngValue]="tec.id">{{ tec.nomeCompleto }} (Matrícula: {{ tec.matricula }})</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top: 0.5rem;">
+      <label>Tipos de Monitoramento Oferecidos *</label>
+      <div class="tipos-grid">
+        @for (item of tiposDisponiveis; track item.value) {
+          <label class="tipo-checkbox" [class.checked]="tiposSelecionados().includes(item.value)">
+            <input type="checkbox" [checked]="tiposSelecionados().includes(item.value)" (change)="toggleTipo(item.value)" />
+            <span>{{ item.label }}</span>
+          </label>
+        }
+      </div>
+      <small class="field__hint">Selecione ao menos uma variável ou modalidade climática monitorada.</small>
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharFormulario()" [disabled]="saving()">Cancelar</button>
+    <button type="submit" form="rede-form" class="btn btn--primary" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : editing() ? 'Salvar alterações' : 'Cadastrar Rede' }}
+    </button>
+  </ng-container>
+</app-modal>
+
+<!-- Confirmação de inativação -->
+<app-confirm-dialog [open]="!!toInactivate()" title="Inativar Rede" confirmLabel="Inativar Rede" [busy]="inactivating()"
+                    [message]="'Deseja inativar a rede ' + (toInactivate()?.sigla ?? '') + ' — ' + (toInactivate()?.descricao ?? '') + '?'"
+                    note="Redes com estações ativas associadas não podem ser inativadas. O histórico de monitoramento será preservado."
+                    (confirmed)="inativar()" (cancelled)="toInactivate.set(null)" />

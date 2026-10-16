@@ -1,0 +1,166 @@
+<header class="page-header">
+  <div>
+    <h1>Órgãos Gestores de Meteorologia</h1>
+    <p class="page-subtitle">Cadastro de OGMs, diretores-gerais e setores/coordenadorias. Registros nunca são excluídos — apenas inativados.</p>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="novo()">+ Novo OGM</button>
+</header>
+
+<div class="toolbar">
+  <input class="toolbar__search" type="search" placeholder="Buscar por sigla, nome, diretor ou setor..."
+         [value]="busca()" (input)="busca.set(inputValue($event))" aria-label="Buscar OGM" />
+  <select class="toolbar__select" [value]="statusFiltro()" (change)="statusFiltro.set($any(inputValue($event)))" aria-label="Filtrar por status">
+    <option value="TODOS">Todos os status</option>
+    <option value="ATIVO">Somente ativos</option>
+    <option value="INATIVO">Somente inativos</option>
+  </select>
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} · {{ totalAtivos() }} ativos</span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando órgãos gestores...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhum OGM encontrado com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Sigla</th>
+            <th>Nome</th>
+            <th>Diretor(a)-geral</th>
+            <th>Contato central</th>
+            <th>Setores</th>
+            <th>Cadastro</th>
+            <th>Status</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ogm of filtrados(); track ogm.id) {
+            <tr [class.row--inativo]="ogm.status !== 'ATIVO'">
+              <td><strong>{{ ogm.sigla }}</strong></td>
+              <td>{{ ogm.nome }}</td>
+              <td>{{ ogm.diretorGeralNome ?? '—' }}</td>
+              <td class="cell-stack">
+                <span>{{ ogm.emailCentral ?? '—' }}</span>
+                <small>{{ ogm.telefoneCentral ?? '' }}</small>
+              </td>
+              <td>
+                @if (ogm.setores.length === 0) {
+                  <span class="muted">—</span>
+                } @else {
+                  <div class="chips">
+                    @for (setor of ogm.setores.slice(0, 3); track $index) {
+                      <span class="chip" [title]="setor.nome + ' — ' + setor.nomeacaoResponsavel">{{ setor.nome }}</span>
+                    }
+                    @if (ogm.setores.length > 3) {
+                      <span class="chip chip--more">+{{ ogm.setores.length - 3 }}</span>
+                    }
+                  </div>
+                }
+              </td>
+              <td>{{ ogm.dataCadastro | dataBr }}</td>
+              <td><app-status-badge [status]="ogm.status" /></td>
+              <td class="table__actions">
+                <button type="button" class="btn btn--sm btn--secondary" (click)="editar(ogm)" [disabled]="ogm.status !== 'ATIVO'">Editar</button>
+                <button type="button" class="btn btn--sm btn--danger-outline" (click)="toInactivate.set(ogm)" [disabled]="ogm.status !== 'ATIVO'">Inativar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Cadastro / edição -->
+<app-modal [open]="formOpen()" [title]="editing() ? 'Editar OGM ' + editing()!.sigla : 'Novo Órgão Gestor (OGM)'"
+           size="wide" [busy]="saving()" (closed)="fecharFormulario()">
+  <form id="ogm-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="ogm-sigla">Sigla *</label>
+        <input id="ogm-sigla" formControlName="sigla" placeholder="Ex.: INMET" [class.invalid]="invalid(form.controls.sigla)" />
+        @if (invalid(form.controls.sigla)) { <small class="field__error">Informe a sigla (até 30 caracteres).</small> }
+      </div>
+      <div class="field field--span2">
+        <label for="ogm-nome">Nome *</label>
+        <input id="ogm-nome" formControlName="nome" placeholder="Ex.: Instituto Nacional de Meteorologia" [class.invalid]="invalid(form.controls.nome)" />
+        @if (invalid(form.controls.nome)) { <small class="field__error">Informe o nome (até 160 caracteres).</small> }
+      </div>
+      <div class="field">
+        <label for="ogm-email">E-mail central *</label>
+        <input id="ogm-email" type="email" formControlName="emailCentral" placeholder="contato@orgao.gov.br" [class.invalid]="invalid(form.controls.emailCentral)" />
+        @if (invalid(form.controls.emailCentral)) { <small class="field__error">Informe um e-mail válido.</small> }
+      </div>
+      <div class="field">
+        <label for="ogm-tel">Telefone central *</label>
+        <input id="ogm-tel" type="tel" formControlName="telefoneCentral" placeholder="(61) 2102-4600" [class.invalid]="invalid(form.controls.telefoneCentral)" />
+        @if (invalid(form.controls.telefoneCentral)) { <small class="field__error">Informe o telefone (até 30 caracteres).</small> }
+      </div>
+      <div class="field">
+        <label for="ogm-diretor">Diretor(a)-geral *</label>
+        <select id="ogm-diretor" formControlName="diretorGeralId" [class.invalid]="invalid(form.controls.diretorGeralId)">
+          <option [ngValue]="null" disabled>Selecione...</option>
+          @for (opt of diretorOptions(); track opt.id) {
+            <option [ngValue]="opt.id" [disabled]="!!opt.ocupadoPor">
+              {{ opt.nome }} — {{ opt.ocupadoPor ? 'já dirige ' + opt.ocupadoPor : opt.origem }}
+            </option>
+          }
+        </select>
+        @if (invalid(form.controls.diretorGeralId)) { <small class="field__error">Selecione o(a) diretor(a)-geral.</small> }
+        <small class="field__hint">Regra: cada usuário dirige no máximo 1 OGM. Para um novo diretor, cadastre-o antes como Técnico.</small>
+      </div>
+    </div>
+
+    <fieldset class="subform">
+      <legend>Setores / Coordenadorias e nomeações</legend>
+      @if (setores.length === 0) {
+        <p class="muted">Nenhum setor adicionado.</p>
+      }
+      <div formArrayName="setores" class="subform__list">
+        @for (setor of setores.controls; track setor; let i = $index) {
+          <div class="subform__row" [formGroupName]="i">
+            <div class="field">
+              <label [for]="'setor-nome-' + i">Setor *</label>
+              <input [id]="'setor-nome-' + i" formControlName="nome" placeholder="Ex.: Coordenação de Previsão"
+                     [class.invalid]="invalid(setor.controls.nome)" />
+            </div>
+            <div class="field">
+              <label [for]="'setor-resp-' + i">Nomeação do responsável *</label>
+              <input [id]="'setor-resp-' + i" formControlName="nomeacaoResponsavel" placeholder="Ex.: Portaria nº 123 — Maria Souza"
+                     [class.invalid]="invalid(setor.controls.nomeacaoResponsavel)" />
+            </div>
+            <button type="button" class="btn btn--sm btn--danger-outline subform__remove" (click)="removerSetor(i)"
+                    [attr.aria-label]="'Remover setor ' + (i + 1)">Remover</button>
+          </div>
+        }
+      </div>
+      <button type="button" class="btn btn--sm btn--secondary" (click)="adicionarSetor()">+ Adicionar setor</button>
+    </fieldset>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharFormulario()" [disabled]="saving()">Cancelar</button>
+    <button type="submit" form="ogm-form" class="btn btn--primary" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : editing() ? 'Salvar alterações' : 'Cadastrar OGM' }}
+    </button>
+  </ng-container>
+</app-modal>
+
+<!-- Confirmação de inativação -->
+<app-confirm-dialog [open]="!!toInactivate()" title="Inativar OGM" confirmLabel="Inativar OGM" [busy]="inactivating()"
+                    [message]="'Deseja inativar o OGM ' + (toInactivate()?.sigla ?? '') + ' — ' + (toInactivate()?.nome ?? '') + '?'"
+                    note="A exclusão física não é permitida: o registro permanece no histórico como INATIVO. OGMs com DMCs ativos vinculados não podem ser inativados."
+                    (confirmed)="inativar()" (cancelled)="toInactivate.set(null)" />

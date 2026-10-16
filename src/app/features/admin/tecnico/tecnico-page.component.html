@@ -1,0 +1,179 @@
+<header class="page-header">
+  <div>
+    <h1>Técnicos Meteorologistas e Perfis</h1>
+    <p class="page-subtitle">Gerenciamento de técnicos meteorologistas (perfil Colaborador). Cada técnico vincula-se obrigatoriamente a um único DMC.</p>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="novo()">+ Novo Técnico</button>
+</header>
+
+<div class="toolbar">
+  <input class="toolbar__search" type="search" placeholder="Buscar por matrícula, nome, e-mail, DMC..."
+         [value]="busca()" (input)="busca.set(inputValue($event))" aria-label="Buscar Técnico" />
+
+  <select class="toolbar__select" [value]="dmcFiltro()" (change)="dmcFiltro.set($any(inputValue($event) === 'TODOS' ? 'TODOS' : +inputValue($event)))" aria-label="Filtrar por DMC">
+    <option value="TODOS">Todos os Distritos (DMC)</option>
+    @for (dmc of dmcs(); track dmc.id) {
+      <option [value]="dmc.id">{{ dmc.nome }}</option>
+    }
+  </select>
+
+  <select class="toolbar__select" [value]="statusFiltro()" (change)="statusFiltro.set($any(inputValue($event)))" aria-label="Filtrar por status">
+    <option value="TODOS">Todos os status</option>
+    <option value="ATIVO">Somente ativos</option>
+    <option value="INATIVO">Somente inativos</option>
+  </select>
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} · {{ totalAtivos() }} ativos</span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando técnicos meteorologistas...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhum técnico encontrado com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Matrícula</th>
+            <th>Nome Completo</th>
+            <th>Distrito Vinculado (DMC)</th>
+            <th>E-mail / Contato</th>
+            <th>Cadastro</th>
+            <th>Status / Histórico</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (tec of filtrados(); track tec.id) {
+            <tr [class.row--inativo]="tec.status !== 'ATIVO'">
+              <td><code>{{ tec.matricula }}</code></td>
+              <td><strong>{{ tec.nomeCompleto }}</strong></td>
+              <td>
+                <span class="chip" [title]="tec.distritoNome ?? 'DMC #' + tec.distritoId">
+                  {{ tec.distritoNome ?? 'DMC #' + tec.distritoId }}
+                </span>
+              </td>
+              <td class="cell-stack">
+                <span>{{ tec.email }}</span>
+                <small>{{ tec.telefone ?? '—' }}</small>
+              </td>
+              <td>{{ tec.dataCadastro | dataBr }}</td>
+              <td>
+                <div class="cell-stack">
+                  <app-status-badge [status]="tec.status" [hint]="tec.motivoInativacao" />
+                  @if (tec.status !== 'ATIVO' && tec.motivoInativacao) {
+                    <small style="color: var(--danger); max-width: 200px; white-space: normal;" [title]="tec.motivoInativacao">
+                      Motivo: {{ tec.motivoInativacao }}
+                    </small>
+                  }
+                </div>
+              </td>
+              <td class="table__actions">
+                <button type="button" class="btn btn--sm btn--secondary" (click)="editar(tec)" [disabled]="tec.status !== 'ATIVO'">Editar</button>
+                <button type="button" class="btn btn--sm btn--danger-outline" (click)="abrirInativacao(tec)" [disabled]="tec.status !== 'ATIVO'">Inativar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Cadastro / Edição -->
+<app-modal [open]="formOpen()" [title]="editing() ? 'Editar Técnico: ' + editing()!.nomeCompleto : 'Novo Técnico Meteorologista'"
+           size="normal" [busy]="saving()" (closed)="fecharFormulario()">
+  <form id="tecnico-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="tec-mat">Matrícula (Registro) *</label>
+        <input id="tec-mat" formControlName="matricula" placeholder="Ex.: TEC-8821" [class.invalid]="invalid(form.controls.matricula)" />
+        @if (invalid(form.controls.matricula)) { <small class="field__error">Informe a matrícula do técnico.</small> }
+      </div>
+
+      <div class="field">
+        <label for="tec-dmc">Distrito Vinculado (DMC) *</label>
+        <select id="tec-dmc" formControlName="distritoId" [class.invalid]="invalid(form.controls.distritoId)">
+          <option [ngValue]="null" disabled>Selecione o DMC...</option>
+          @for (dmc of dmcsAtivos(); track dmc.id) {
+            <option [ngValue]="dmc.id">{{ dmc.nome }}</option>
+          }
+        </select>
+        @if (invalid(form.controls.distritoId)) { <small class="field__error">Selecione o DMC obrigatório.</small> }
+      </div>
+
+      <div class="field field--span2">
+        <label for="tec-nome">Nome Completo *</label>
+        <input id="tec-nome" formControlName="nomeCompleto" placeholder="Ex.: João Silva dos Santos" [class.invalid]="invalid(form.controls.nomeCompleto)" />
+        @if (invalid(form.controls.nomeCompleto)) { <small class="field__error">Informe o nome completo.</small> }
+      </div>
+
+      <div class="field">
+        <label for="tec-email">E-mail *</label>
+        <input id="tec-email" type="email" formControlName="email" placeholder="joao.silva@clima.gov.br" [class.invalid]="invalid(form.controls.email)" />
+        @if (invalid(form.controls.email)) { <small class="field__error">Informe um e-mail válido.</small> }
+      </div>
+
+      <div class="field">
+        <label for="tec-tel">Telefone de Contato</label>
+        <input id="tec-tel" type="tel" formControlName="telefone" placeholder="(71) 98765-4321" />
+      </div>
+
+      @if (!editing()) {
+        <div class="field field--span2">
+          <label for="tec-senha">Senha Inicial de Acesso</label>
+          <input id="tec-senha" type="password" formControlName="senhaInicial" placeholder="Padrão: 123456" />
+          <small class="field__hint">Cria automaticamente a conta de usuário vinculada com perfil COLABORADOR.</small>
+        </div>
+      }
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharFormulario()" [disabled]="saving()">Cancelar</button>
+    <button type="submit" form="tecnico-form" class="btn btn--primary" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : editing() ? 'Salvar alterações' : 'Cadastrar Técnico' }}
+    </button>
+  </ng-container>
+</app-modal>
+
+<!-- Modal de Inativação Obrigatória com Justificativa (RN008) -->
+<app-modal [open]="inactivateModalOpen()" [title]="'Inativar Técnico: ' + (tecnicoToInactivate()?.nomeCompleto ?? '')"
+           size="normal" [busy]="inactivating()" (closed)="fecharInativacao()">
+  <form id="inactivate-form" [formGroup]="inactivateForm" (ngSubmit)="confirmarInativacao()" novalidate>
+    @if (inactivateError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="alert alert--info">
+      <strong>Regra de Negócio RN008:</strong> A inativação do técnico meteorologista não permite exclusão física e exige registro formal da justificativa (ex.: afastamento médico, desligamento funcional, suspensão contratual) no histórico associado.
+    </div>
+
+    <div class="field">
+      <label for="tec-justificativa">Justificativa da Inativação *</label>
+      <textarea id="tec-justificativa" formControlName="justificativa" rows="4"
+                placeholder="Descreva detalhadamente o motivo da inativação (mínimo de 10 caracteres)..."
+                [class.invalid]="inactivateForm.controls.justificativa.invalid && (inactivateForm.controls.justificativa.touched || inactivateForm.controls.justificativa.dirty)"></textarea>
+      @if (inactivateForm.controls.justificativa.invalid && (inactivateForm.controls.justificativa.touched || inactivateForm.controls.justificativa.dirty)) {
+        <small class="field__error">A justificativa é obrigatória e deve ter pelo menos 10 caracteres.</small>
+      }
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharInativacao()" [disabled]="inactivating()">Cancelar</button>
+    <button type="submit" form="inactivate-form" class="btn btn--danger" [disabled]="inactivating() || inactivateForm.invalid">
+      {{ inactivating() ? 'Registrando...' : 'Confirmar Inativação' }}
+    </button>
+  </ng-container>
+</app-modal>

@@ -6,9 +6,11 @@ import { PERFIL_LABELS, Perfil } from '../../core/models/auth.models';
 import { NAV_SECTIONS } from '../../core/navigation/nav.config';
 import { AuthService } from '../../core/services/auth.service';
 
+import { ToastContainerComponent } from '../../shared/toast/toast-container.component';
+
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastContainerComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,0 +1,36 @@
+.tipos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.tipo-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  user-select: none;
+  transition: all 0.15s ease;
+
+  input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+  }
+
+  &.checked {
+    background: #eef4fb;
+    border-color: var(--primary);
+    color: var(--primary-dark);
+    font-weight: 600;
+  }
+
+  &:hover {
+    border-color: var(--primary);
+  }
+}
