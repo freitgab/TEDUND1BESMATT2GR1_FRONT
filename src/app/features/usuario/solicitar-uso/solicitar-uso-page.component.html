@@ -1,0 +1,240 @@
+<header class="page-header">
+  <div>
+    <h1>Solicitar Uso de Estação Meteorológica</h1>
+    <p class="page-subtitle">
+      Cadastre solicitações individuais (1 estação por pedido) informando a data e a janela horária desejada. Ao concluir sua coleta em uma solicitação aprovada, confirme a liberação da estação.
+    </p>
+  </div>
+  <button type="button" class="btn btn--secondary" (click)="reload()" [disabled]="loading()">
+    Atualizar lista
+  </button>
+</header>
+
+<!-- Formulário de Cadastro / Edição de Solicitação Individual -->
+<section class="form-card" aria-labelledby="form-uso-title">
+  <div class="form-card__header">
+    <h2 id="form-uso-title">
+      {{ editing() ? 'Editar Solicitação de Uso #' + editing()!.id : 'Nova Solicitação Individual de Uso (1 Estação por Pedido)' }}
+    </h2>
+    @if (editing()) {
+      <button type="button" class="btn btn--sm btn--secondary" (click)="cancelarEdicao()">
+        Cancelar edição
+      </button>
+    }
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="uso-estacao">Estação Meteorológica (destaque para DISPONÍVEL) *</label>
+        <select
+          id="uso-estacao"
+          formControlName="estacaoId"
+          [class.invalid]="invalid(form.controls.estacaoId)"
+        >
+          <option [ngValue]="null" disabled>Selecione uma estação...</option>
+          @for (est of estacoesSelecionaveis(); track est.id) {
+            <option [ngValue]="est.id">
+              {{ est.status === 'DISPONIVEL' ? '🟢 [DISPONÍVEL]' : '🟠 [EM USO]' }}
+              {{ est.sigla }} — {{ est.nome }} ({{ tipoEstacaoLabel(est.tipoEstacao) }})
+            </option>
+          }
+        </select>
+        @if (invalid(form.controls.estacaoId)) {
+          <small class="field__error">Selecione a estação meteorológica.</small>
+        }
+        <small class="field__hint">Regra: Cada pedido contempla individualmente 1 estação meteorológica.</small>
+      </div>
+
+      <div class="field">
+        <label for="uso-dmc">Distrito de Monitoramento Climático (DMC) *</label>
+        <select
+          id="uso-dmc"
+          formControlName="dmcId"
+          [class.invalid]="invalid(form.controls.dmcId)"
+        >
+          <option [ngValue]="null" disabled>Selecione o DMC...</option>
+          @for (dmc of dmcsAtivos(); track dmc.id) {
+            <option [ngValue]="dmc.id">{{ dmc.nome }} ({{ dmc.orgaoGestorNome }})</option>
+          }
+        </select>
+        @if (invalid(form.controls.dmcId)) {
+          <small class="field__error">Selecione o DMC responsável.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="uso-data">Data de Uso *</label>
+        <input
+          id="uso-data"
+          type="date"
+          formControlName="dataUso"
+          [class.invalid]="invalid(form.controls.dataUso)"
+        />
+        @if (invalid(form.controls.dataUso)) {
+          <small class="field__error">Informe a data pretendida para o uso.</small>
+        }
+      </div>
+
+      <div class="field" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+        <div>
+          <label for="uso-inicio">Horário Inicial *</label>
+          <input
+            id="uso-inicio"
+            type="time"
+            formControlName="horaInicio"
+            [class.invalid]="invalid(form.controls.horaInicio)"
+          />
+        </div>
+        <div>
+          <label for="uso-fim">Horário Final *</label>
+          <input
+            id="uso-fim"
+            type="time"
+            formControlName="horaFim"
+            [class.invalid]="invalid(form.controls.horaFim)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card__actions">
+      @if (editing()) {
+        <button type="button" class="btn btn--secondary" (click)="cancelarEdicao()" [disabled]="saving()">
+          Cancelar
+        </button>
+      }
+      <button type="submit" class="btn btn--primary" [disabled]="saving()">
+        {{ saving() ? 'Enviando...' : editing() ? 'Salvar alterações no pedido' : 'Enviar Solicitação de Uso' }}
+      </button>
+    </div>
+  </form>
+</section>
+
+@if (totalAprovadasEmUso() > 0) {
+  <div class="alert alert--success" role="status">
+    <strong>Atenção:</strong> Você possui <strong>{{ totalAprovadasEmUso() }}</strong> solicitação(ões) aprovada(s) em andamento. Ao finalizar a coleta de dados, clique em <strong>"Confirmar Liberação da Estação"</strong> para devolver a estação ao status <code>DISPONÍVEL</code>.
+  </div>
+}
+
+<!-- Barra de filtro das solicitações do usuário -->
+<div class="toolbar">
+  <input
+    class="toolbar__search"
+    type="search"
+    placeholder="Buscar em minhas solicitações por estação, DMC, data, status..."
+    [value]="busca()"
+    (input)="busca.set(inputValue($event))"
+    aria-label="Buscar em minhas solicitações"
+  />
+
+  <select
+    class="toolbar__select"
+    [value]="statusFiltro()"
+    (change)="statusFiltro.set($any(inputValue($event)))"
+    aria-label="Filtrar por Status"
+  >
+    <option value="TODOS">Todos os status</option>
+    <option value="PENDENTE">Pendentes</option>
+    <option value="APROVADA">Aprovadas (aguardando liberação)</option>
+    <option value="FINALIZADA">Finalizadas (liberadas)</option>
+    <option value="REPROVADA">Reprovadas</option>
+    <option value="INATIVO">Canceladas / Inativas</option>
+  </select>
+
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} solicitações</span>
+</div>
+
+<!-- Tabela de Minhas Solicitações de Uso -->
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando suas solicitações de uso...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhuma solicitação de uso encontrada.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Estação Meteorológica</th>
+            <th>Distrito (DMC)</th>
+            <th>Data &amp; Horário</th>
+            <th>Solicitado em</th>
+            <th>Status &amp; Retorno Técnico</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sol of filtrados(); track sol.id) {
+            <tr [class.row--inativo]="sol.status === 'INATIVO'">
+              <td><code>#{{ sol.id }}</code></td>
+              <td class="cell-stack">
+                <strong><code>{{ sol.estacaoSigla }}</code> — {{ sol.estacaoNome }}</strong>
+              </td>
+              <td><span class="chip">{{ sol.dmcNome ?? 'DMC #' + sol.dmcId }}</span></td>
+              <td class="cell-stack">
+                <strong>{{ sol.dataUso | dataBr }}</strong>
+                <small>{{ formatHoraCurta(sol.horaInicio) }} às {{ formatHoraCurta(sol.horaFim) }}</small>
+              </td>
+              <td>{{ sol.dataSolicitacao | dataBr:true }}</td>
+              <td class="cell-stack">
+                <app-status-badge [status]="sol.status" [hint]="sol.justificativaReprovacao" />
+                @if (sol.status === 'REPROVADA' && sol.justificativaReprovacao) {
+                  <small style="color: var(--danger); max-width: 260px; white-space: normal;">
+                    Motivo da reprovação: {{ sol.justificativaReprovacao }}
+                  </small>
+                }
+                @if (sol.status === 'FINALIZADA' && sol.dataLiberacao) {
+                  <small>Estação liberada em {{ sol.dataLiberacao | dataBr:true }}</small>
+                }
+              </td>
+              <td class="table__actions">
+                @if (sol.status === 'PENDENTE') {
+                  <button type="button" class="btn btn--sm btn--secondary" (click)="editar(sol)">
+                    Editar
+                  </button>
+                  <button type="button" class="btn btn--sm btn--danger-outline" (click)="toInactivate.set(sol)">
+                    Inativar
+                  </button>
+                } @else if (sol.status === 'APROVADA') {
+                  <button
+                    type="button"
+                    class="btn btn--sm btn--success"
+                    (click)="confirmarLiberacao(sol)"
+                    [disabled]="releasingId() === sol.id"
+                  >
+                    {{ releasingId() === sol.id ? 'Liberando...' : '✓ Confirmar Liberação da Estação' }}
+                  </button>
+                } @else {
+                  <span class="muted" style="font-size: 0.8rem;">Concluída</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Confirmação de Inativação de Solicitação Pendente -->
+<app-confirm-dialog
+  [open]="!!toInactivate()"
+  title="Inativar Solicitação de Uso"
+  confirmLabel="Inativar Pedido"
+  [busy]="inactivating()"
+  [message]="'Deseja cancelar/inativar a solicitação de uso #' + (toInactivate()?.id ?? '') + ' para a estação ' + (toInactivate()?.estacaoSigla ?? '') + '?'"
+  note="O pedido será marcado como INATIVO, preservando o registro para fins de histórico."
+  (confirmed)="inativar()"
+  (cancelled)="toInactivate.set(null)"
+/>

@@ -43,9 +43,27 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['COLABORADOR'] },
         children: [
-          { path: 'estacoes', loadComponent: placeholder, data: { title: 'Estações, Sensores e Softwares', commit: 3 } },
-          { path: 'solicitacoes-uso', loadComponent: placeholder, data: { title: 'Solicitações de Uso', commit: 3 } },
-          { path: 'solicitacoes-instalacao', loadComponent: placeholder, data: { title: 'Solicitações de Instalação', commit: 3 } },
+          {
+            path: 'estacoes',
+            loadComponent: () =>
+              import('./features/colaborador/estacoes/estacoes-page.component').then(
+                (m) => m.EstacoesPageComponent,
+              ),
+          },
+          {
+            path: 'solicitacoes-uso',
+            loadComponent: () =>
+              import('./features/colaborador/solicitacoes-uso/deliberacao-uso-page.component').then(
+                (m) => m.DeliberacaoUsoPageComponent,
+              ),
+          },
+          {
+            path: 'solicitacoes-instalacao',
+            loadComponent: () =>
+              import(
+                './features/colaborador/solicitacoes-instalacao/deliberacao-instalacao-page.component'
+              ).then((m) => m.DeliberacaoInstalacaoPageComponent),
+          },
           { path: 'relatorios', loadComponent: placeholder, data: { title: 'Relatórios do Colaborador', commit: 4 } },
           { path: '', pathMatch: 'full', redirectTo: 'estacoes' },
         ],
@@ -55,8 +73,20 @@ export const routes: Routes = [
         canActivate: [roleGuard],
         data: { roles: ['USUARIO'] },
         children: [
-          { path: 'solicitar-uso', loadComponent: placeholder, data: { title: 'Solicitar Uso de Estação', commit: 3 } },
-          { path: 'solicitar-instalacao', loadComponent: placeholder, data: { title: 'Solicitar Sensor/Software', commit: 3 } },
+          {
+            path: 'solicitar-uso',
+            loadComponent: () =>
+              import('./features/usuario/solicitar-uso/solicitar-uso-page.component').then(
+                (m) => m.SolicitarUsoPageComponent,
+              ),
+          },
+          {
+            path: 'solicitar-instalacao',
+            loadComponent: () =>
+              import(
+                './features/usuario/solicitar-instalacao/solicitar-instalacao-page.component'
+              ).then((m) => m.SolicitarInstalacaoPageComponent),
+          },
           { path: 'relatorios', loadComponent: placeholder, data: { title: 'Relatórios do Usuário', commit: 4 } },
           { path: '', pathMatch: 'full', redirectTo: 'solicitar-uso' },
         ],

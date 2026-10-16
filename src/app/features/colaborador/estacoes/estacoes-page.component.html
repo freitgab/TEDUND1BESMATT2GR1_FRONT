@@ -1,0 +1,404 @@
+<header class="page-header">
+  <div>
+    <h1>Estações Meteorológicas, Sensores e Softwares</h1>
+    <p class="page-subtitle">
+      Gerenciamento técnico das estações vinculadas às redes de monitoramento. Estações Automáticas e Radares Meteorológicos exigem especificação obrigatória de sensores e softwares de coleta/transmissão.
+    </p>
+  </div>
+  <button type="button" class="btn btn--primary" (click)="novo()">+ Nova Estação</button>
+</header>
+
+<div class="toolbar">
+  <input
+    class="toolbar__search"
+    type="search"
+    placeholder="Buscar por sigla, nome, rede, sensores, softwares..."
+    [value]="busca()"
+    (input)="busca.set(inputValue($event))"
+    aria-label="Buscar Estação"
+  />
+
+  <select
+    class="toolbar__select"
+    [value]="redeFiltro()"
+    (change)="redeFiltro.set($any(inputValue($event) === 'TODOS' ? 'TODOS' : +inputValue($event)))"
+    aria-label="Filtrar por Rede"
+  >
+    <option value="TODOS">Todas as Redes</option>
+    @for (rede of redes(); track rede.id) {
+      <option [value]="rede.id">{{ rede.sigla }} — {{ rede.descricao }}</option>
+    }
+  </select>
+
+  <select
+    class="toolbar__select"
+    [value]="tipoFiltro()"
+    (change)="tipoFiltro.set($any(inputValue($event)))"
+    aria-label="Filtrar por Tipo"
+  >
+    <option value="TODOS">Todos os Tipos</option>
+    @for (t of tiposEstacao; track t.value) {
+      <option [value]="t.value">{{ t.label }}</option>
+    }
+  </select>
+
+  <select
+    class="toolbar__select"
+    [value]="statusFiltro()"
+    (change)="statusFiltro.set($any(inputValue($event)))"
+    aria-label="Filtrar por Status"
+  >
+    <option value="TODOS">Todos os status</option>
+    <option value="DISPONIVEL">Disponível</option>
+    <option value="INDISPONIVEL">Indisponível (em uso)</option>
+    <option value="INATIVO">Inativo (manutenção/avaria)</option>
+  </select>
+
+  <span class="toolbar__count">
+    {{ filtrados().length }} de {{ items().length }} · {{ totalDisponiveis() }} disponíveis · {{ totalIndisponiveis() }} em uso
+  </span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando estações meteorológicas...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhuma estação meteorológica encontrada com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Sigla / Nome</th>
+            <th>Tipo de Estação</th>
+            <th>Rede</th>
+            <th>Coordenadas / Cap.</th>
+            <th>Sensores &amp; Softwares</th>
+            <th>Cadastro</th>
+            <th>Status</th>
+            <th class="table__actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (est of filtrados(); track est.id) {
+            <tr [class.row--inativo]="est.status === 'INATIVO'">
+              <td class="cell-stack">
+                <strong><code>{{ est.sigla }}</code> — {{ est.nome }}</strong>
+                @if (est.descricaoComplementar) {
+                  <small>{{ est.descricaoComplementar }}</small>
+                }
+              </td>
+              <td>{{ tipoEstacaoLabel(est.tipoEstacao) }}</td>
+              <td>
+                <span class="chip">{{ est.redeMonitoramentoSigla ?? 'Rede #' + est.redeMonitoramentoId }}</span>
+              </td>
+              <td class="cell-stack">
+                <span>Lat {{ est.latitude }}, Lon {{ est.longitude }}</span>
+                <small>Capacidade máx.: {{ est.capacidadeMaximaSuportada }} pesquisador(es)</small>
+              </td>
+              <td>
+                @if ((est.sensores && est.sensores.length > 0) || (est.softwares && est.softwares.length > 0)) {
+                  <div class="cell-stack">
+                    <div class="chips">
+                      @for (s of est.sensores; track s) {
+                        <span class="chip">{{ s }}</span>
+                      }
+                    </div>
+                    @if (est.softwares.length > 0) {
+                      <small>
+                        Softwares ({{ est.softwares.length }}):
+                        @for (sw of est.softwares; track sw.nome; let last = $last) {
+                          <strong>{{ sw.nome }}</strong> ({{ sw.tipoSoftware === 'SOFTWARE_LIVRE' ? 'Livre' : 'Proprietário' }}){{ !last ? ', ' : '' }}
+                        }
+                      </small>
+                    }
+                  </div>
+                } @else {
+                  <span class="muted">Coleta convencional / N/A</span>
+                }
+              </td>
+              <td>{{ est.dataCadastro | dataBr }}</td>
+              <td><app-status-badge [status]="est.status" /></td>
+              <td class="table__actions">
+                <button
+                  type="button"
+                  class="btn btn--sm btn--secondary"
+                  (click)="editar(est)"
+                  [disabled]="est.status === 'INATIVO'"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn--sm btn--danger-outline"
+                  (click)="toInactivate.set(est)"
+                  [disabled]="est.status === 'INATIVO'"
+                  title="Inativar estação para manutenção, calibração ou avaria"
+                >
+                  Inativar
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Modal de Cadastro / Edição de Estação -->
+<app-modal
+  [open]="formOpen()"
+  [title]="editing() ? 'Editar Estação ' + editing()!.sigla : 'Nova Estação Meteorológica'"
+  size="wide"
+  [busy]="saving()"
+  (closed)="fecharFormulario()"
+>
+  <form id="estacao-form" [formGroup]="form" (ngSubmit)="salvar()" novalidate>
+    @if (formError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="est-sigla">Sigla da Estação *</label>
+        <input
+          id="est-sigla"
+          formControlName="sigla"
+          placeholder="Ex.: EMA-SSA01"
+          [class.invalid]="invalid(form.controls.sigla)"
+        />
+        @if (invalid(form.controls.sigla)) {
+          <small class="field__error">Informe a sigla da estação (até 30 caracteres).</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="est-tipo">Tipo da Estação *</label>
+        <select
+          id="est-tipo"
+          formControlName="tipoEstacao"
+          (change)="onTipoEstacaoChange($any(inputValue($event)))"
+          [class.invalid]="invalid(form.controls.tipoEstacao)"
+        >
+          @for (t of tiposEstacao; track t.value) {
+            <option [value]="t.value">{{ t.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field field--span2">
+        <label for="est-nome">Nome da Estação *</label>
+        <input
+          id="est-nome"
+          formControlName="nome"
+          placeholder="Ex.: Estação Automática de Salvador - Ondina"
+          [class.invalid]="invalid(form.controls.nome)"
+        />
+        @if (invalid(form.controls.nome)) {
+          <small class="field__error">Informe o nome completo da estação.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="est-rede">Rede de Monitoramento *</label>
+        <select
+          id="est-rede"
+          formControlName="redeMonitoramentoId"
+          [class.invalid]="invalid(form.controls.redeMonitoramentoId)"
+        >
+          <option [ngValue]="null" disabled>Selecione a rede ativa...</option>
+          @for (rede of redesAtivas(); track rede.id) {
+            <option [ngValue]="rede.id">{{ rede.sigla }} — {{ rede.descricao }}</option>
+          }
+        </select>
+        @if (invalid(form.controls.redeMonitoramentoId)) {
+          <small class="field__error">Selecione a rede de monitoramento.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="est-cap">Capacidade Máxima Suportada *</label>
+        <input
+          id="est-cap"
+          type="number"
+          min="1"
+          max="500"
+          formControlName="capacidadeMaximaSuportada"
+          [class.invalid]="invalid(form.controls.capacidadeMaximaSuportada)"
+        />
+        @if (invalid(form.controls.capacidadeMaximaSuportada)) {
+          <small class="field__error">Informe uma capacidade mínima de 1.</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="est-lat">Latitude (-90 a 90) *</label>
+        <input
+          id="est-lat"
+          type="number"
+          step="0.0001"
+          formControlName="latitude"
+          placeholder="-12.9714"
+          [class.invalid]="invalid(form.controls.latitude)"
+        />
+        @if (invalid(form.controls.latitude)) {
+          <small class="field__error">Latitude inválida (entre -90 e 90).</small>
+        }
+      </div>
+
+      <div class="field">
+        <label for="est-lon">Longitude (-180 a 180) *</label>
+        <input
+          id="est-lon"
+          type="number"
+          step="0.0001"
+          formControlName="longitude"
+          placeholder="-38.5014"
+          [class.invalid]="invalid(form.controls.longitude)"
+        />
+        @if (invalid(form.controls.longitude)) {
+          <small class="field__error">Longitude inválida (entre -180 e 180).</small>
+        }
+      </div>
+
+      <div class="field field--span2">
+        <label for="est-desc">Descrição Complementar</label>
+        <textarea
+          id="est-desc"
+          rows="2"
+          formControlName="descricaoComplementar"
+          placeholder="Observações sobre instalação física, abrigo meteorológico, altitude..."
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Renderização Condicional Obrigatória: AUTOMATICA ou RADAR_METEOROLOGICO -->
+    @if (exigeSecaoTecnica()) {
+      <fieldset class="subform">
+        <legend>Sensores Disponíveis na Estação * (Obrigatório para {{ tipoEstacaoLabel(tipoSelecionado()) }})</legend>
+        <div class="tipos-grid">
+          @for (sensor of tiposSensor; track sensor.value) {
+            <label class="tipo-checkbox" [class.checked]="sensoresSelecionados().includes(sensor.value)">
+              <input
+                type="checkbox"
+                [checked]="sensoresSelecionados().includes(sensor.value)"
+                (change)="toggleSensor(sensor.value)"
+              />
+              <span>{{ sensor.label }}</span>
+            </label>
+          }
+        </div>
+        <small class="field__hint">Selecione todos os sensores instalados na estação.</small>
+      </fieldset>
+
+      <fieldset class="subform" formArrayName="softwares">
+        <legend>Softwares de Coleta e Transmissão * ({{ softwares.length }})</legend>
+
+        <div class="subform__list">
+          @for (sw of softwares.controls; track $index; let i = $index) {
+            <div class="software-card" [formGroupName]="i">
+              <div class="software-card__header">
+                <span>Software #{{ i + 1 }}</span>
+                @if (softwares.length > 1) {
+                  <button
+                    type="button"
+                    class="btn btn--sm btn--danger-outline"
+                    (click)="removerSoftware(i)"
+                  >
+                    Remover software
+                  </button>
+                }
+              </div>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label [for]="'sw-nome-' + i">Nome do Software *</label>
+                  <input
+                    [id]="'sw-nome-' + i"
+                    formControlName="nome"
+                    placeholder="Ex.: ClimaLogger Pro v3"
+                    [class.invalid]="invalid(sw.controls.nome)"
+                  />
+                </div>
+
+                <div class="field">
+                  <label [for]="'sw-lic-' + i">Tipo de Licença *</label>
+                  <select [id]="'sw-lic-' + i" formControlName="tipoSoftware">
+                    @for (lic of tiposLicenca; track lic.value) {
+                      <option [value]="lic.value">{{ lic.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label [for]="'sw-url-' + i">URL de Download / Repositório *</label>
+                  <input
+                    [id]="'sw-url-' + i"
+                    formControlName="urlDownload"
+                    placeholder="https://downloads.clima.gov.br/logger"
+                    [class.invalid]="invalid(sw.controls.urlDownload)"
+                  />
+                </div>
+
+                <div class="field">
+                  <label [for]="'sw-var-' + i">Variáveis Monitoradas (separadas por vírgula) *</label>
+                  <input
+                    [id]="'sw-var-' + i"
+                    formControlName="variaveisTexto"
+                    placeholder="Ex.: TEMPERATURA, UMIDADE, VENTO"
+                    [class.invalid]="invalid(sw.controls.variaveisTexto)"
+                  />
+                </div>
+
+                <div class="field field--span2">
+                  <label [for]="'sw-obj-' + i">Objetivo de Uso *</label>
+                  <input
+                    [id]="'sw-obj-' + i"
+                    formControlName="objetivoUso"
+                    placeholder="Ex.: Telemetria horária automática via protocolo MQTT e validação de séries"
+                    [class.invalid]="invalid(sw.controls.objetivoUso)"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <button type="button" class="btn btn--sm btn--secondary" (click)="adicionarSoftware()">
+          + Adicionar outro software
+        </button>
+      </fieldset>
+    } @else {
+      <div class="alert alert--info" style="margin-top: 0.75rem;">
+        O tipo selecionado (<strong>{{ tipoEstacaoLabel(tipoSelecionado()) }}</strong>) não exige cadastro obrigatório de sensores eletrônicos e softwares de coleta/transmissão.
+      </div>
+    }
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharFormulario()" [disabled]="saving()">
+      Cancelar
+    </button>
+    <button type="submit" form="estacao-form" class="btn btn--primary" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : editing() ? 'Salvar alterações' : 'Cadastrar Estação' }}
+    </button>
+  </ng-container>
+</app-modal>
+
+<!-- Confirmação de Inativação (Soft Delete) -->
+<app-confirm-dialog
+  [open]="!!toInactivate()"
+  title="Inativar Estação Meteorológica"
+  confirmLabel="Inativar Estação"
+  [busy]="inactivating()"
+  [message]="'Deseja inativar a estação ' + (toInactivate()?.sigla ?? '') + ' — ' + (toInactivate()?.nome ?? '') + ' para manutenção, calibração ou avaria?'"
+  note="A inativação realiza exclusão lógica (status INATIVO), impedindo novas solicitações de uso e preservando todo o histórico de coletas e solicitações."
+  (confirmed)="inativar()"
+  (cancelled)="toInactivate.set(null)"
+/>

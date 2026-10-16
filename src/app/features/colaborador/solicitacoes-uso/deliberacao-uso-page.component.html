@@ -1,0 +1,185 @@
+<header class="page-header">
+  <div>
+    <h1>Deliberação de Solicitações de Uso de Estação</h1>
+    <p class="page-subtitle">
+      Analise os pedidos de uso de estações meteorológicas enviados por pesquisadores e produtores rurais. O sistema bloqueia automaticamente sobreposições de horário na mesma estação.
+    </p>
+  </div>
+  <button type="button" class="btn btn--secondary" (click)="reload()" [disabled]="loading()">
+    Atualizar lista
+  </button>
+</header>
+
+@if (actionError(); as erroConflito) {
+  <div class="alert alert--error" role="alert" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+    <span><strong>Conflito / Regra de Negócio:</strong> {{ erroConflito }}</span>
+    <button type="button" class="btn btn--sm btn--secondary" (click)="actionError.set(null)">Fechar</button>
+  </div>
+}
+
+<div class="toolbar">
+  <input
+    class="toolbar__search"
+    type="search"
+    placeholder="Buscar por estação, solicitante, DMC, data, justificativa..."
+    [value]="busca()"
+    (input)="busca.set(inputValue($event))"
+    aria-label="Buscar Solicitação de Uso"
+  />
+
+  <select
+    class="toolbar__select"
+    [value]="statusFiltro()"
+    (change)="statusFiltro.set($any(inputValue($event)))"
+    aria-label="Filtrar por Status"
+  >
+    <option value="TODOS">Todos os status</option>
+    <option value="PENDENTE">Pendentes de deliberação</option>
+    <option value="APROVADA">Aprovadas (em uso)</option>
+    <option value="FINALIZADA">Finalizadas (liberadas)</option>
+    <option value="REPROVADA">Reprovadas</option>
+    <option value="INATIVO">Canceladas / Inativas</option>
+  </select>
+
+  <span class="toolbar__count">
+    {{ filtrados().length }} de {{ items().length }} · {{ totalPendentes() }} pendentes · {{ totalAprovadas() }} em uso
+  </span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando solicitações de uso...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhuma solicitação de uso encontrada com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Estação Meteorológica</th>
+            <th>Solicitante</th>
+            <th>Distrito (DMC)</th>
+            <th>Data de Uso &amp; Janela Horária</th>
+            <th>Solicitado em</th>
+            <th>Status &amp; Justificativa</th>
+            <th class="table__actions">Deliberação</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (sol of filtrados(); track sol.id) {
+            <tr [class.row--inativo]="sol.status === 'INATIVO'">
+              <td><code>#{{ sol.id }}</code></td>
+              <td class="cell-stack">
+                <strong><code>{{ sol.estacaoSigla }}</code> — {{ sol.estacaoNome }}</strong>
+              </td>
+              <td>{{ sol.nomeUsuario ?? 'Usuário #' + sol.usuarioId }}</td>
+              <td>
+                <span class="chip">{{ sol.dmcNome ?? 'DMC #' + sol.dmcId }}</span>
+              </td>
+              <td class="cell-stack">
+                <strong>{{ sol.dataUso | dataBr }}</strong>
+                <small>{{ formatHoraCurta(sol.horaInicio) }} às {{ formatHoraCurta(sol.horaFim) }}</small>
+              </td>
+              <td>{{ sol.dataSolicitacao | dataBr:true }}</td>
+              <td class="cell-stack">
+                <app-status-badge [status]="sol.status" [hint]="sol.justificativaReprovacao" />
+                @if (sol.status === 'REPROVADA' && sol.justificativaReprovacao) {
+                  <small style="color: var(--danger); max-width: 240px; white-space: normal;">
+                    Justificativa: {{ sol.justificativaReprovacao }}
+                  </small>
+                }
+                @if (sol.status === 'FINALIZADA' && sol.dataLiberacao) {
+                  <small>Liberada em {{ sol.dataLiberacao | dataBr:true }}</small>
+                }
+              </td>
+              <td class="table__actions">
+                @if (sol.status === 'PENDENTE') {
+                  <button
+                    type="button"
+                    class="btn btn--sm btn--success"
+                    (click)="aprovar(sol)"
+                    [disabled]="approvingId() === sol.id"
+                  >
+                    {{ approvingId() === sol.id ? 'Aprovando...' : 'Aprovar' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--sm btn--danger-outline"
+                    (click)="abrirReprovacao(sol)"
+                    [disabled]="approvingId() === sol.id"
+                  >
+                    Reprovar
+                  </button>
+                } @else {
+                  <span class="muted" style="font-size: 0.8rem;">Deliberada</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<!-- Modal de Reprovação Obrigatória com Justificativa -->
+<app-modal
+  [open]="reprovarModalOpen()"
+  [title]="'Reprovar Solicitação de Uso #' + (targetReprovar()?.id ?? '')"
+  size="normal"
+  [busy]="reprovando()"
+  (closed)="fecharReprovacao()"
+>
+  <form id="reprovar-uso-form" [formGroup]="reprovarForm" (ngSubmit)="confirmarReprovacao()" novalidate>
+    @if (reprovarError(); as erro) {
+      <div class="alert alert--error" role="alert">{{ erro }}</div>
+    }
+
+    @if (targetReprovar(); as sol) {
+      <div class="alert alert--info">
+        <strong>Estação:</strong> {{ sol.estacaoSigla }} — {{ sol.estacaoNome }}<br />
+        <strong>Solicitante:</strong> {{ sol.nomeUsuario }} · <strong>Data:</strong> {{ sol.dataUso | dataBr }} ({{ formatHoraCurta(sol.horaInicio) }} às {{ formatHoraCurta(sol.horaFim) }})
+      </div>
+    }
+
+    <div class="field">
+      <label for="justificativa-uso">Justificativa da Reprovação *</label>
+      <textarea
+        id="justificativa-uso"
+        rows="4"
+        formControlName="justificativa"
+        placeholder="Informe o motivo técnico da reprovação (ex.: manutenção preventiva agendada, incompatibilidade de janela operacional)..."
+        [class.invalid]="
+          reprovarForm.controls.justificativa.invalid &&
+          (reprovarForm.controls.justificativa.touched || reprovarForm.controls.justificativa.dirty)
+        "
+      ></textarea>
+      @if (
+        reprovarForm.controls.justificativa.invalid &&
+        (reprovarForm.controls.justificativa.touched || reprovarForm.controls.justificativa.dirty)
+      ) {
+        <small class="field__error">A justificativa é obrigatória (mínimo de 5 caracteres).</small>
+      }
+    </div>
+  </form>
+
+  <ng-container modal-footer>
+    <button type="button" class="btn btn--secondary" (click)="fecharReprovacao()" [disabled]="reprovando()">
+      Cancelar
+    </button>
+    <button
+      type="submit"
+      form="reprovar-uso-form"
+      class="btn btn--danger"
+      [disabled]="reprovando() || reprovarForm.invalid"
+    >
+      {{ reprovando() ? 'Reprovando...' : 'Confirmar Reprovação' }}
+    </button>
+  </ng-container>
+</app-modal>
