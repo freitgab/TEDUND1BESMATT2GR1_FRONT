@@ -1,0 +1,46 @@
+<div class="shell">
+  <header class="topbar">
+    <button type="button" class="topbar__menu" (click)="toggleSidebar()"
+            [attr.aria-expanded]="sidebarOpen()" aria-label="Abrir menu">☰</button>
+    <a class="topbar__brand" routerLink="/">⛅ <span>Clima · Monitoramento</span></a>
+
+    <div class="topbar__user">
+      <div class="topbar__badges">
+        @for (perfil of auth.perfis(); track perfil) {
+          <span [class]="perfilClass(perfil)">{{ perfilLabel(perfil) }}</span>
+        }
+      </div>
+      <span class="topbar__name" [title]="auth.session()?.email">{{ nome() }}</span>
+      <button type="button" class="btn btn--ghost" (click)="logout()">Sair</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar" [class.sidebar--open]="sidebarOpen()" aria-label="Menu principal">
+      <nav>
+        <a class="sidebar__link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          <span class="sidebar__icon">🏠</span> Início
+        </a>
+
+        @for (section of sections; track section.role) {
+          @if (auth.hasRole(section.role)) {
+            <h2 class="sidebar__title">{{ section.title }}</h2>
+            @for (link of section.links; track link.path) {
+              <a class="sidebar__link" [routerLink]="link.path" routerLinkActive="active">
+                <span class="sidebar__icon">{{ link.icon }}</span> {{ link.label }}
+              </a>
+            }
+          }
+        }
+      </nav>
+    </aside>
+
+    @if (sidebarOpen()) {
+      <div class="backdrop" (click)="toggleSidebar()"></div>
+    }
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

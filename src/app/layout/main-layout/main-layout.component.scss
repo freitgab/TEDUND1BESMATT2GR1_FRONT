@@ -1,0 +1,109 @@
+.shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 56px;
+  padding: 0 1rem;
+  color: #fff;
+  background: linear-gradient(90deg, #0b2447, #19376d);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.topbar__menu {
+  display: none;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.topbar__brand {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar__user {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.topbar__badges { display: flex; gap: 0.35rem; flex-wrap: wrap; justify-content: flex-end; }
+.topbar__name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+
+.body { display: flex; flex: 1; min-height: 0; }
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 0.75rem;
+  overflow-y: auto;
+  height: calc(100vh - 56px);
+  position: sticky;
+  top: 56px;
+}
+
+.sidebar__title {
+  margin: 1rem 0.5rem 0.35rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+
+  &:hover { background: #eef4fb; }
+  &.active { background: #dbe9fb; color: var(--primary-dark); font-weight: 600; }
+}
+
+.sidebar__icon { width: 1.4rem; text-align: center; }
+.content { flex: 1; min-width: 0; padding: 1.5rem; }
+.backdrop { display: none; }
+
+@media (max-width: 900px) {
+  .topbar__menu { display: block; }
+  .topbar__brand span, .topbar__name { display: none; }
+
+  .sidebar {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    z-index: 25;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+
+    &--open { transform: translateX(0); }
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 56px 0 0 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .content { padding: 1rem; }
+}
