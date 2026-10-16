@@ -9,6 +9,13 @@ const STATUS_LABELS: Record<string, string> = {
   APROVADA: 'Aprovada',
   REPROVADA: 'Reprovada',
   FINALIZADA: 'Finalizada',
+  // Ações de Auditoria
+  CADASTRO: 'Cadastro',
+  EDICAO: 'Edição',
+  INATIVACAO: 'Inativação',
+  APROVACAO: 'Aprovação',
+  REPROVACAO: 'Reprovação',
+  LIBERACAO: 'Liberação',
 };
 
 const STATUS_CLASS: Record<string, string> = {
@@ -20,12 +27,22 @@ const STATUS_CLASS: Record<string, string> = {
   APROVADA: 'status--aprovada',
   REPROVADA: 'status--reprovada',
   FINALIZADA: 'status--finalizada',
+  // Classes para Ações de Auditoria
+  CADASTRO: 'status--cadastro',
+  EDICAO: 'status--edicao',
+  INATIVACAO: 'status--inativacao',
+  APROVACAO: 'status--aprovacao',
+  REPROVACAO: 'status--reprovacao',
+  LIBERACAO: 'status--liberacao',
 };
 
 /**
- * Badge visual de status de entidades administrativas, estações meteorológicas e solicitações:
- * ATIVO / DISPONIVEL (verde), INDISPONIVEL (amarelo/laranja), INATIVO (vermelho/cinza),
- * PENDENTE (âmbar), APROVADA (verde), REPROVADA (vermelho), FINALIZADA (azul/roxo).
+ * Badge visual de status e ações (entidades, estações, solicitações e auditoria):
+ * ATIVO / DISPONIVEL / APROVADA / APROVACAO (verde)
+ * INDISPONIVEL / PENDENTE / EDICAO (amarelo/laranja/âmbar)
+ * INATIVO / REPROVADA / INATIVACAO / REPROVACAO (vermelho)
+ * FINALIZADA / LIBERACAO (roxo/azul)
+ * CADASTRO (azul/ciano)
  */
 @Component({
   selector: 'app-status-badge',

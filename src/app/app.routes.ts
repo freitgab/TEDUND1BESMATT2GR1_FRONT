@@ -3,9 +3,6 @@ import { Routes } from '@angular/router';
 import { guestGuard, roleGuard } from './core/guards/role.guard';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
 
-const placeholder = () =>
-  import('./shared/module-placeholder/module-placeholder.component').then((m) => m.ModulePlaceholderComponent);
-
 export const routes: Routes = [
   {
     path: 'login',
@@ -33,8 +30,8 @@ export const routes: Routes = [
           { path: 'dmc', loadComponent: () => import('./features/admin/dmc/dmc-page.component').then((m) => m.DmcPageComponent) },
           { path: 'redes', loadComponent: () => import('./features/admin/rede/rede-page.component').then((m) => m.RedePageComponent) },
           { path: 'usuarios', loadComponent: () => import('./features/admin/tecnico/tecnico-page.component').then((m) => m.TecnicoPageComponent) },
-          { path: 'auditoria', loadComponent: placeholder, data: { title: 'Logs de Auditoria', commit: 4 } },
-          { path: 'relatorios', loadComponent: placeholder, data: { title: 'Relatórios do Administrador', commit: 4 } },
+          { path: 'auditoria', loadComponent: () => import('./features/admin/auditoria/auditoria-page.component').then((m) => m.AuditoriaPageComponent) },
+          { path: 'relatorios', loadComponent: () => import('./features/admin/relatorios/admin-relatorios-page.component').then((m) => m.AdminRelatoriosPageComponent) },
           { path: '', pathMatch: 'full', redirectTo: 'ogm' },
         ],
       },
@@ -64,7 +61,13 @@ export const routes: Routes = [
                 './features/colaborador/solicitacoes-instalacao/deliberacao-instalacao-page.component'
               ).then((m) => m.DeliberacaoInstalacaoPageComponent),
           },
-          { path: 'relatorios', loadComponent: placeholder, data: { title: 'Relatórios do Colaborador', commit: 4 } },
+          {
+            path: 'relatorios',
+            loadComponent: () =>
+              import(
+                './features/colaborador/relatorios/colaborador-relatorios-page.component'
+              ).then((m) => m.ColaboradorRelatoriosPageComponent),
+          },
           { path: '', pathMatch: 'full', redirectTo: 'estacoes' },
         ],
       },
@@ -87,7 +90,13 @@ export const routes: Routes = [
                 './features/usuario/solicitar-instalacao/solicitar-instalacao-page.component'
               ).then((m) => m.SolicitarInstalacaoPageComponent),
           },
-          { path: 'relatorios', loadComponent: placeholder, data: { title: 'Relatórios do Usuário', commit: 4 } },
+          {
+            path: 'relatorios',
+            loadComponent: () =>
+              import('./features/usuario/relatorios/usuario-relatorios-page.component').then(
+                (m) => m.UsuarioRelatoriosPageComponent,
+              ),
+          },
           { path: '', pathMatch: 'full', redirectTo: 'solicitar-uso' },
         ],
       },

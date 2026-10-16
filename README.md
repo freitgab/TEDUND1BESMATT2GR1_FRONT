@@ -92,6 +92,18 @@ o acesso se o usuário tiver **pelo menos um** dos perfis exigidos. O menu later
 - **Minhas Solicitações de Uso e Liberação (`/usuario/solicitar-uso`):** Cadastro e edição de solicitações individuais (1 estação por pedido, destacando estações `DISPONIVEL`), inativação enquanto `PENDENTE` e botão de destaque **"Confirmar Liberação da Estação"** (`PATCH /api/solicitacoes-uso/{id}/liberar`) quando `APROVADA`, retornando a estação ao status `DISPONIVEL`.
 - **Minhas Solicitações de Instalação (`/usuario/solicitar-instalacao`):** Formulário e listagem de pedidos de instalação de sensores/softwares (`PROPRIETARIO` ou `SOFTWARE_LIVRE`) com edição e inativação enquanto `PENDENTE`.
 
+#### Commit 4: Monitoramento de Auditoria e Emissão de Relatórios (Sprint Final)
+- **Services de Auditoria e Relatórios:**
+  - `AuditoriaService`: consome `GET /api/auditoria` com suporte a filtros por ação, entidade e e-mail.
+  - `RelatorioService`: consome os 4 endpoints de relatórios oficiais (`/api/relatorios/admin/estrutura-organizacional`, `/api/relatorios/admin/tecnicos`, `/api/relatorios/colaborador/geral`, `/api/relatorios/usuario/minhas-solicitacoes`).
+- **Monitoramento de Logs de Auditoria (`/admin/auditoria`):** Tabela com busca rápida e filtros por ação (`CADASTRO`, `EDICAO`, `INATIVACAO`, `APROVACAO`, `REPROVACAO`, `LIBERACAO`) e entidade (`OGM`, `DMC`, `REDE`, `TECNICO`, `ESTACAO`, `SOLICITACAO_USO`, `SOLICITACAO_INSTALACAO`), exibindo timestamp formatado (`dd/MM/yyyy HH:mm:ss`), e-mail responsável e detalhes da operação.
+- **Relatórios Oficiais do Administrador (`/admin/relatorios`):**
+  - **Relatório 1 (Estrutura Organizacional):** Cabeçalho oficial com identificação do Administrador emissor e data/hora, seguido da exibição hierárquica e abrangência operacional de OGMs, DMCs subordinados e Redes de Monitoramento atreladas.
+  - **Relatório 2 (Quadro de Técnicos por DMC):** Cabeçalho oficial com identificação do Administrador, tabela de técnicos meteorologistas, matrículas, contatos, DMCs vinculados, status e histórico de inativação.
+  - Botão de exportação **"Imprimir / Exportar PDF"** (`window.print()`) com folhas de estilo `@media print` otimizadas (ocultando barras de navegação, botões e sidebars).
+- **Relatório Consolidado do Colaborador (`/colaborador/relatorios`):** Cabeçalho institucional, tabela consolidada de estações (com sensores e softwares) e tabelas completas de deliberações de solicitações de uso e de instalação com justificativas e pareceres técnicos.
+- **Relatório de Solicitações do Usuário (`/usuario/relatorios`):** Histórico de solicitações de uso de estação e de instalação de sensores/softwares realizadas pela conta do usuário, evidenciando pareceres técnicos de aprovação/reprovação.
+
 ---
 
 ### Scripts do Projeto
@@ -103,4 +115,4 @@ o acesso se o usuário tiver **pelo menos um** dos perfis exigidos. O menu later
 1. `feat: estrutura base Angular, AuthGuard multi-perfil, HttpInterceptor e tela de Login` ✅
 2. `feat: telas de gestão administrativa (OGM, DMC, Redes e Técnicos)` ✅
 3. `feat: painéis do Colaborador e Usuário (Estações, Reserva de Uso, Aprovação e Liberação)` ✅
-4. `feat: componentes visuais de Relatórios, visualização de Auditoria e ajustes de UI`
+4. `feat: componentes visuais de Relatórios, visualização de Auditoria e ajustes de UI` ✅

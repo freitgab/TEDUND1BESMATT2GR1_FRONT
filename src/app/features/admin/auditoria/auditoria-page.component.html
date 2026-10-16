@@ -1,0 +1,96 @@
+<header class="page-header">
+  <div>
+    <h1>Logs de Auditoria e Rastreabilidade</h1>
+    <p class="page-subtitle">
+      Registro cronológico de todas as operações sensíveis (cadastros, edições, inativações, deliberações e liberações de estações) realizadas no sistema por usuários autenticados.
+    </p>
+  </div>
+  <button type="button" class="btn btn--secondary" (click)="reload()" [disabled]="loading()">
+    Atualizar logs
+  </button>
+</header>
+
+<div class="toolbar">
+  <input
+    class="toolbar__search"
+    type="search"
+    placeholder="Buscar por e-mail, ação, entidade ou detalhes..."
+    [value]="busca()"
+    (input)="busca.set(inputValue($event))"
+    aria-label="Buscar nos logs de auditoria"
+  />
+
+  <select
+    class="toolbar__select"
+    [value]="acaoFiltro()"
+    (change)="acaoFiltro.set(inputValue($event))"
+    aria-label="Filtrar por Ação"
+  >
+    <option value="TODAS">Todas as Ações</option>
+    @for (acao of acoesDisponiveis; track acao) {
+      <option [value]="acao">{{ acao }}</option>
+    }
+  </select>
+
+  <select
+    class="toolbar__select"
+    [value]="entidadeFiltro()"
+    (change)="entidadeFiltro.set(inputValue($event))"
+    aria-label="Filtrar por Entidade"
+  >
+    <option value="TODAS">Todas as Entidades</option>
+    @for (ent of entidadesDisponiveis; track ent) {
+      <option [value]="ent">{{ ent }}</option>
+    }
+  </select>
+
+  <span class="toolbar__count">{{ filtrados().length }} de {{ items().length }} registros</span>
+</div>
+
+<section class="table-card">
+  @if (loading() && items().length === 0) {
+    <p class="state">Carregando trilha de auditoria...</p>
+  } @else if (loadError(); as erro) {
+    <div class="state state--error">
+      <p>{{ erro }}</p>
+      <button type="button" class="btn btn--secondary" (click)="reload()">Tentar novamente</button>
+    </div>
+  } @else if (filtrados().length === 0) {
+    <p class="state">Nenhum registro de auditoria encontrado com os filtros atuais.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Data e Hora</th>
+            <th>Usuário Responsável</th>
+            <th>Ação</th>
+            <th>Entidade Afetada</th>
+            <th>Detalhes da Operação</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (log of filtrados(); track log.id) {
+            <tr>
+              <td style="white-space: nowrap;">
+                <strong>{{ log.dataHora | dataBr:true:true }}</strong>
+              </td>
+              <td>
+                <code>{{ log.usuarioEmail }}</code>
+              </td>
+              <td>
+                <app-status-badge [status]="log.acao" />
+              </td>
+              <td>
+                <span class="chip">{{ log.entidadeAfetada }}</span>
+              </td>
+              <td style="max-width: 480px; word-break: break-word;">
+                {{ log.detalhes ?? '—' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

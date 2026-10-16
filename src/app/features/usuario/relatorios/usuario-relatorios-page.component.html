@@ -1,0 +1,194 @@
+<header class="page-header no-print">
+  <div>
+    <h1>Relatório de Solicitações do Usuário</h1>
+    <p class="page-subtitle">
+      Histórico completo de pedidos de uso de estações meteorológicas e de solicitações para instalação de sensores ou softwares realizados pela sua conta, com pareceres e justificativas técnicas.
+    </p>
+  </div>
+</header>
+
+@if (loading()) {
+  <p class="state">Carregando seu relatório de solicitações...</p>
+} @else if (loadError(); as erro) {
+  <div class="state state--error">
+    <p>{{ erro }}</p>
+    <button type="button" class="btn btn--secondary" (click)="carregar()">
+      Tentar novamente
+    </button>
+  </div>
+} @else if (relatorio(); as rep) {
+  <article class="report-container">
+    <header class="report-header">
+      <div class="report-header__brand">
+        <div>
+          <h1>Relatório Oficial do Usuário: Histórico de Solicitações</h1>
+          <p>Sistema de Controle e Monitoramento do Clima · Perfil Pesquisador / Produtor Rural</p>
+        </div>
+      </div>
+
+      <div class="report-header__meta">
+        <div>
+          <strong>Usuário Solicitante:</strong>
+          {{ rep.nomeEmissor }} (<code>{{ rep.emailEmissor }}</code>)
+        </div>
+        <div>
+          <strong>Data e Hora de Emissão:</strong>
+          {{ rep.dataHoraEmissao | dataBr:true:true }}
+        </div>
+        <div>
+          <strong>Total de Registros:</strong>
+          {{ rep.solicitacoesUso.length }} solicitação(ões) de uso · {{ rep.solicitacoesInstalacao.length }} solicitação(ões) de instalação
+        </div>
+      </div>
+
+      <div class="report-header__actions no-print">
+        <button type="button" class="btn btn--primary" (click)="imprimir()">
+          🖨️ Imprimir / Exportar PDF
+        </button>
+        <button type="button" class="btn btn--secondary" (click)="carregar()">
+          🔄 Atualizar
+        </button>
+      </div>
+    </header>
+
+    <!-- Seção 1: Minhas Solicitações de Uso de Estações -->
+    <section class="report-section">
+      <h2 class="report-section__title">
+        1. Solicitações de Uso de Estação Meteorológica ({{ rep.solicitacoesUso.length }})
+      </h2>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Estação Meteorológica</th>
+                <th>Distrito (DMC)</th>
+                <th>Data de Uso &amp; Janela Horária</th>
+                <th>Data do Pedido</th>
+                <th>Status</th>
+                <th>Justificativa / Parecer Técnico</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (rep.solicitacoesUso.length === 0) {
+                <tr><td colspan="7" class="state">Nenhuma solicitação de uso de estação cadastrada.</td></tr>
+              } @else {
+                @for (uso of rep.solicitacoesUso; track uso.id) {
+                  <tr>
+                    <td><code>#{{ uso.id }}</code></td>
+                    <td class="cell-stack">
+                      <strong><code>{{ uso.estacaoSigla }}</code> — {{ uso.estacaoNome }}</strong>
+                    </td>
+                    <td><span class="chip">{{ uso.dmcNome ?? 'DMC #' + uso.dmcId }}</span></td>
+                    <td class="cell-stack">
+                      <strong>{{ uso.dataUso | dataBr }}</strong>
+                      <small>{{ formatHoraCurta(uso.horaInicio) }} às {{ formatHoraCurta(uso.horaFim) }}</small>
+                    </td>
+                    <td>{{ uso.dataSolicitacao | dataBr:true }}</td>
+                    <td><app-status-badge [status]="uso.status" /></td>
+                    <td>
+                      @if (uso.status === 'REPROVADA' && uso.justificativaReprovacao) {
+                        <span style="color: var(--danger); font-size: 0.84rem;">
+                          Reprovado: {{ uso.justificativaReprovacao }}
+                        </span>
+                      } @else if (uso.status === 'FINALIZADA' && uso.dataLiberacao) {
+                        <span style="color: var(--muted); font-size: 0.84rem;">
+                          Estação liberada em {{ uso.dataLiberacao | dataBr:true }}
+                        </span>
+                      } @else if (uso.status === 'APROVADA') {
+                        <span style="color: var(--success); font-weight: 500; font-size: 0.84rem;">
+                          ✓ Uso aprovado (em andamento)
+                        </span>
+                      } @else if (uso.status === 'PENDENTE') {
+                        <span style="color: #b45309; font-size: 0.84rem;">
+                          Aguardando deliberação técnica do DMC
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 2: Minhas Solicitações de Instalação -->
+    <section class="report-section">
+      <h2 class="report-section__title">
+        2. Solicitações de Instalação de Sensores e Softwares ({{ rep.solicitacoesInstalacao.length }})
+      </h2>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Estação Alvo</th>
+                <th>Sensor / Software Solicitado</th>
+                <th>Licença &amp; URL</th>
+                <th>Objetivo de Uso</th>
+                <th>Data do Pedido</th>
+                <th>Status</th>
+                <th>Parecer Técnico</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (rep.solicitacoesInstalacao.length === 0) {
+                <tr><td colspan="8" class="state">Nenhuma solicitação de instalação cadastrada.</td></tr>
+              } @else {
+                @for (inst of rep.solicitacoesInstalacao; track inst.id) {
+                  <tr>
+                    <td><code>#{{ inst.id }}</code></td>
+                    <td class="cell-stack">
+                      <strong><code>{{ inst.estacaoSigla }}</code> — {{ inst.estacaoNome }}</strong>
+                    </td>
+                    <td><strong>{{ inst.sensoresSoftwares }}</strong></td>
+                    <td class="cell-stack">
+                      @if (inst.tipoSoftware) {
+                        <span class="chip">{{ tipoLicencaLabel(inst.tipoSoftware) }}</span>
+                      } @else {
+                        <span class="muted">Hardware / N/A</span>
+                      }
+                      @if (inst.urlDownload) {
+                        <small>
+                          <a [href]="inst.urlDownload" target="_blank" rel="noopener noreferrer">
+                            {{ inst.urlDownload }}
+                          </a>
+                        </small>
+                      }
+                    </td>
+                    <td style="max-width: 250px;">{{ inst.objetivoUso }}</td>
+                    <td>{{ inst.dataSolicitacao | dataBr:true }}</td>
+                    <td><app-status-badge [status]="inst.status" /></td>
+                    <td>
+                      @if (inst.status === 'REPROVADA' && inst.justificativaReprovacao) {
+                        <span style="color: var(--danger); font-size: 0.84rem;">
+                          Reprovado: {{ inst.justificativaReprovacao }}
+                        </span>
+                      } @else if (inst.status === 'APROVADA') {
+                        <span style="color: var(--success); font-weight: 500; font-size: 0.84rem;">
+                          ✓ Instalação autorizada
+                        </span>
+                      } @else if (inst.status === 'PENDENTE') {
+                        <span style="color: #b45309; font-size: 0.84rem;">
+                          Em análise pelo Colaborador
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </article>
+}

@@ -1,0 +1,231 @@
+<header class="page-header no-print">
+  <div>
+    <h1>Relatório Consolidado do Colaborador</h1>
+    <p class="page-subtitle">
+      Visão geral de monitoramento técnico contendo as estações meteorológicas vinculadas, seus sensores e softwares instalados, além do histórico completo de deliberações técnicas de solicitações de uso e instalação.
+    </p>
+  </div>
+</header>
+
+@if (loading()) {
+  <p class="state">Gerando relatório técnico com dados atualizados...</p>
+} @else if (loadError(); as erro) {
+  <div class="state state--error">
+    <p>{{ erro }}</p>
+    <button type="button" class="btn btn--secondary" (click)="carregar()">
+      Tentar novamente
+    </button>
+  </div>
+} @else if (relatorio(); as rep) {
+  <article class="report-container">
+    <header class="report-header">
+      <div class="report-header__brand">
+        <div>
+          <h1>Relatório Técnico: Monitoramento e Deliberações</h1>
+          <p>Sistema de Controle e Monitoramento do Clima · Perfil Técnico Meteorologista</p>
+        </div>
+      </div>
+
+      <div class="report-header__meta">
+        <div>
+          <strong>Colaborador Emissor:</strong>
+          {{ rep.nomeEmissor }} (<code>{{ rep.emailEmissor }}</code>)
+        </div>
+        <div>
+          <strong>Data e Hora de Emissão:</strong>
+          {{ rep.dataHoraEmissao | dataBr:true:true }}
+        </div>
+        <div>
+          <strong>Resumo Técnico:</strong>
+          {{ rep.estacoes.length }} estação(ões) · {{ rep.solicitacoesUso.length }} pedido(s) de uso · {{ rep.solicitacoesInstalacao.length }} pedido(s) de instalação
+        </div>
+      </div>
+
+      <div class="report-header__actions no-print">
+        <button type="button" class="btn btn--primary" (click)="imprimir()">
+          🖨️ Imprimir / Exportar PDF
+        </button>
+        <button type="button" class="btn btn--secondary" (click)="carregar()">
+          🔄 Atualizar
+        </button>
+      </div>
+    </header>
+
+    <!-- Seção 1: Estações Meteorológicas, Sensores e Softwares -->
+    <section class="report-section">
+      <h2 class="report-section__title">
+        1. Estações Meteorológicas Ativas e Instrumentação ({{ rep.estacoes.length }})
+      </h2>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Sigla / Nome</th>
+                <th>Tipo</th>
+                <th>Rede</th>
+                <th>Cap.</th>
+                <th>Sensores Disponíveis</th>
+                <th>Softwares de Coleta</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (est of rep.estacoes; track est.id) {
+                <tr [class.row--inativo]="est.status === 'INATIVO'">
+                  <td class="cell-stack">
+                    <strong><code>{{ est.sigla }}</code> — {{ est.nome }}</strong>
+                  </td>
+                  <td>{{ tipoEstacaoLabel(est.tipoEstacao) }}</td>
+                  <td>{{ est.redeMonitoramentoSigla ?? 'Rede #' + est.redeMonitoramentoId }}</td>
+                  <td>{{ est.capacidadeMaximaSuportada }}</td>
+                  <td>
+                    @if (est.sensores && est.sensores.length > 0) {
+                      <div class="chips">
+                        @for (s of est.sensores; track s) {
+                          <span class="chip">{{ s }}</span>
+                        }
+                      </div>
+                    } @else {
+                      <span class="muted">N/A</span>
+                    }
+                  </td>
+                  <td>
+                    @if (est.softwares && est.softwares.length > 0) {
+                      <div class="cell-stack">
+                        @for (sw of est.softwares; track sw.nome) {
+                          <span>
+                            <strong>{{ sw.nome }}</strong> ({{ sw.tipoSoftware === 'SOFTWARE_LIVRE' ? 'Livre' : 'Proprietário' }})
+                          </span>
+                        }
+                      </div>
+                    } @else {
+                      <span class="muted">N/A</span>
+                    }
+                  </td>
+                  <td><app-status-badge [status]="est.status" /></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 2: Deliberações de Solicitações de Uso -->
+    <section class="report-section">
+      <h2 class="report-section__title">
+        2. Deliberações de Solicitações de Uso de Estação ({{ rep.solicitacoesUso.length }})
+      </h2>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Estação</th>
+                <th>Solicitante</th>
+                <th>Data de Uso &amp; Horário</th>
+                <th>Status</th>
+                <th>Justificativa / Observação Técnica</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (rep.solicitacoesUso.length === 0) {
+                <tr><td colspan="6" class="state">Nenhuma solicitação de uso registrada.</td></tr>
+              } @else {
+                @for (uso of rep.solicitacoesUso; track uso.id) {
+                  <tr>
+                    <td><code>#{{ uso.id }}</code></td>
+                    <td><strong>{{ uso.estacaoSigla }}</strong></td>
+                    <td>{{ uso.nomeUsuario ?? 'Usuário #' + uso.usuarioId }}</td>
+                    <td class="cell-stack">
+                      <strong>{{ uso.dataUso | dataBr }}</strong>
+                      <small>{{ formatHoraCurta(uso.horaInicio) }} às {{ formatHoraCurta(uso.horaFim) }}</small>
+                    </td>
+                    <td><app-status-badge [status]="uso.status" /></td>
+                    <td>
+                      @if (uso.status === 'REPROVADA' && uso.justificativaReprovacao) {
+                        <span style="color: var(--danger); font-size: 0.84rem;">
+                          Reprovado: {{ uso.justificativaReprovacao }}
+                        </span>
+                      } @else if (uso.status === 'FINALIZADA' && uso.dataLiberacao) {
+                        <span style="color: var(--muted); font-size: 0.84rem;">
+                          Liberada em {{ uso.dataLiberacao | dataBr:true }}
+                        </span>
+                      } @else if (uso.status === 'APROVADA') {
+                        <span style="color: var(--success); font-weight: 500; font-size: 0.84rem;">
+                          Uso autorizado e reservado
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção 3: Deliberações de Instalação de Sensores/Softwares -->
+    <section class="report-section">
+      <h2 class="report-section__title">
+        3. Deliberações de Instalação de Sensor e Software ({{ rep.solicitacoesInstalacao.length }})
+      </h2>
+      <div class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Estação Alvo</th>
+                <th>Solicitante</th>
+                <th>Sensor / Software Solicitado</th>
+                <th>Objetivo de Uso</th>
+                <th>Status</th>
+                <th>Justificativa / Parecer</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (rep.solicitacoesInstalacao.length === 0) {
+                <tr><td colspan="7" class="state">Nenhuma solicitação de instalação registrada.</td></tr>
+              } @else {
+                @for (inst of rep.solicitacoesInstalacao; track inst.id) {
+                  <tr>
+                    <td><code>#{{ inst.id }}</code></td>
+                    <td><strong>{{ inst.estacaoSigla }}</strong></td>
+                    <td>{{ inst.nomeUsuario ?? 'Usuário #' + inst.usuarioId }}</td>
+                    <td class="cell-stack">
+                      <strong>{{ inst.sensoresSoftwares }}</strong>
+                      @if (inst.tipoSoftware) {
+                        <small>{{ tipoLicencaLabel(inst.tipoSoftware) }}</small>
+                      }
+                    </td>
+                    <td style="max-width: 250px;">{{ inst.objetivoUso }}</td>
+                    <td><app-status-badge [status]="inst.status" /></td>
+                    <td>
+                      @if (inst.status === 'REPROVADA' && inst.justificativaReprovacao) {
+                        <span style="color: var(--danger); font-size: 0.84rem;">
+                          Reprovado: {{ inst.justificativaReprovacao }}
+                        </span>
+                      } @else if (inst.status === 'APROVADA') {
+                        <span style="color: var(--success); font-weight: 500; font-size: 0.84rem;">
+                          Instalação aprovada
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </article>
+}

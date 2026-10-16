@@ -1,0 +1,272 @@
+<header class="page-header no-print">
+  <div>
+    <h1>Relatórios Oficiais da Administração</h1>
+    <p class="page-subtitle">
+      Geração e exportação dos relatórios oficiais consolidados de governança climática previstos no plano de controle do sistema (itens 7.1 e 7.2).
+    </p>
+  </div>
+</header>
+
+<!-- Seletor de Abas dos Relatórios -->
+<nav class="report-tabs no-print" aria-label="Selecione o relatório oficial">
+  <button
+    type="button"
+    class="report-tab"
+    [class.report-tab--active]="abaAtiva() === 'ESTRUTURA'"
+    (click)="setAba('ESTRUTURA')"
+  >
+    📊 Relatório 1 — Estrutura Organizacional (OGM, DMC e Redes)
+  </button>
+  <button
+    type="button"
+    class="report-tab"
+    [class.report-tab--active]="abaAtiva() === 'TECNICOS'"
+    (click)="setAba('TECNICOS')"
+  >
+    👥 Relatório 2 — Quadro Geral de Técnicos Meteorologistas
+  </button>
+</nav>
+
+@if (loading()) {
+  <p class="state">Gerando relatório oficial com dados atualizados...</p>
+} @else if (loadError(); as erro) {
+  <div class="state state--error">
+    <p>{{ erro }}</p>
+    <button
+      type="button"
+      class="btn btn--secondary"
+      (click)="abaAtiva() === 'ESTRUTURA' ? carregarEstrutura() : carregarTecnicos()"
+    >
+      Tentar novamente
+    </button>
+  </div>
+} @else {
+  <!-- ==================== RELATÓRIO 1: ESTRUTURA ORGANIZACIONAL ==================== -->
+  @if (abaAtiva() === 'ESTRUTURA' && relatorioEstrutura(); as rep) {
+    <article class="report-container">
+      <header class="report-header">
+        <div class="report-header__brand">
+          <div>
+            <h1>Relatório Oficial de Estrutura Organizacional</h1>
+            <p>Sistema de Controle e Monitoramento do Clima · Governança e Hierarquia de Órgãos, Distritos e Redes</p>
+          </div>
+        </div>
+
+        <div class="report-header__meta">
+          <div>
+            <strong>Administrador Responsável:</strong>
+            {{ rep.nomeEmissor }} (<code>{{ rep.emailEmissor }}</code>)
+          </div>
+          <div>
+            <strong>Data e Hora de Emissão:</strong>
+            {{ rep.dataHoraEmissao | dataBr:true:true }}
+          </div>
+          <div>
+            <strong>Consolidação:</strong>
+            {{ rep.ogms.length }} OGM(s) · {{ rep.dmcs.length }} DMC(s) · {{ rep.redes.length }} Rede(s)
+          </div>
+        </div>
+
+        <div class="report-header__actions no-print">
+          <button type="button" class="btn btn--primary" (click)="imprimir()">
+            🖨️ Imprimir / Exportar PDF
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="carregarEstrutura()">
+            🔄 Atualizar
+          </button>
+        </div>
+      </header>
+
+      <section class="report-section">
+        <h2 class="report-section__title">
+          Hierarquia Institucional e Abrangência Operacional
+        </h2>
+
+        @if (rep.estruturaConsolidada.length === 0) {
+          <p class="state">Nenhum Órgão Gestor cadastrado no sistema.</p>
+        } @else {
+          @for (item of rep.estruturaConsolidada; track item.ogm.id) {
+            <div class="hierarchy-card">
+              <!-- Nível 1: Órgão Gestor de Meteorologia (OGM) -->
+              <div class="hierarchy-card__ogm">
+                <div>
+                  <h3>
+                    🏛️ {{ item.ogm.sigla }} — {{ item.ogm.nome }}
+                  </h3>
+                  <div class="ogm-meta">
+                    <strong>Diretor(a)-Geral:</strong> {{ item.ogm.diretorGeralNome ?? 'Não atribuído' }} ·
+                    <strong>Central:</strong> {{ item.ogm.emailCentral ?? '—' }} ({{ item.ogm.telefoneCentral ?? '—' }}) ·
+                    <strong>Cadastrado em:</strong> {{ item.ogm.dataCadastro | dataBr }}
+                  </div>
+                </div>
+                <div>
+                  <app-status-badge [status]="item.ogm.status" />
+                </div>
+              </div>
+
+              <div class="hierarchy-card__body">
+                @if (item.ogm.setores && item.ogm.setores.length > 0) {
+                  <div>
+                    <strong style="font-size: 0.85rem; color: var(--muted); display: block; margin-bottom: 0.3rem;">
+                      Setores / Coordenadorias Vinculadas:
+                    </strong>
+                    <div class="chips">
+                      @for (setor of item.ogm.setores; track setor.nome) {
+                        <span class="chip" [title]="'Responsável: ' + setor.nomeacaoResponsavel">
+                          {{ setor.nome }} (Resp.: {{ setor.nomeacaoResponsavel }})
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+
+                <!-- Nível 2: Distritos de Monitoramento Climático (DMC) subordinados -->
+                <div>
+                  <strong style="font-size: 0.88rem; color: var(--primary-dark); display: block; margin-bottom: 0.5rem;">
+                    Distritos de Monitoramento Climático ({{ item.distritos.length }} DMCs vinculados):
+                  </strong>
+
+                  @if (item.distritos.length === 0) {
+                    <p class="muted" style="font-size: 0.85rem; margin: 0.5rem 0;">
+                      Nenhum DMC cadastrado sob a jurisdição deste OGM.
+                    </p>
+                  } @else {
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                      @for (dmc of item.distritos; track dmc.id) {
+                        <div class="hierarchy-card__dmc">
+                          <div class="dmc-head">
+                            <div>
+                              <h4>📍 {{ dmc.nome }}</h4>
+                              <span>
+                                <strong>Meteorologista-Chefe:</strong> {{ dmc.meteorologistaChefeNome ?? 'Não atribuído' }} ·
+                                <strong>Contato:</strong> {{ dmc.emailCentral ?? '—' }} ({{ dmc.telefoneCentral ?? '—' }})
+                              </span>
+                            </div>
+                            <app-status-badge [status]="dmc.status" />
+                          </div>
+
+                          <!-- Nível 3: Redes de Monitoramento subordinadas a este DMC -->
+                          @let redesDoDmc = redesDoDistrito(item.redes, dmc.id);
+                          <div class="hierarchy-card__redes">
+                            <div class="redes-title">
+                              Redes de Monitoramento Atreladas ({{ redesDoDmc.length }}):
+                            </div>
+                            @if (redesDoDmc.length === 0) {
+                              <span class="muted" style="font-size: 0.8rem;">Nenhuma rede atrelada a este distrito.</span>
+                            } @else {
+                              <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                                @for (rede of redesDoDmc; track rede.id) {
+                                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.83rem; background: #f8fafc; padding: 0.4rem 0.65rem; border-radius: 6px;">
+                                    <div>
+                                      <strong>{{ rede.sigla }}</strong> — {{ rede.descricao }}
+                                      <small class="muted" style="display: block;">
+                                        Responsável: {{ rede.meteorologistaResponsavelNome ?? 'Não atribuído' }}
+                                      </small>
+                                    </div>
+                                    <div class="chips" style="margin-left: 0.5rem;">
+                                      @for (tipo of rede.tiposMonitoramento; track tipo) {
+                                        <span class="chip" style="font-size: 0.7rem;">{{ tipo }}</span>
+                                      }
+                                      <app-status-badge [status]="rede.status" />
+                                    </div>
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </section>
+    </article>
+  }
+
+  <!-- ==================== RELATÓRIO 2: QUADRO DE TÉCNICOS ==================== -->
+  @if (abaAtiva() === 'TECNICOS' && relatorioTecnicos(); as rep) {
+    <article class="report-container">
+      <header class="report-header">
+        <div class="report-header__brand">
+          <div>
+            <h1>Relatório Oficial: Quadro Geral de Técnicos Meteorologistas</h1>
+            <p>Sistema de Controle e Monitoramento do Clima · Relação de Técnicos por Distrito de Monitoramento Climático</p>
+          </div>
+        </div>
+
+        <div class="report-header__meta">
+          <div>
+            <strong>Administrador Responsável:</strong>
+            {{ rep.nomeEmissor }} (<code>{{ rep.emailEmissor }}</code>)
+          </div>
+          <div>
+            <strong>Data e Hora de Emissão:</strong>
+            {{ rep.dataHoraEmissao | dataBr:true:true }}
+          </div>
+          <div>
+            <strong>Total de Registros:</strong>
+            {{ rep.tecnicos.length }} técnico(s) cadastrado(s)
+          </div>
+        </div>
+
+        <div class="report-header__actions no-print">
+          <button type="button" class="btn btn--primary" (click)="imprimir()">
+            🖨️ Imprimir / Exportar PDF
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="carregarTecnicos()">
+            🔄 Atualizar
+          </button>
+        </div>
+      </header>
+
+      <section class="table-card">
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Matrícula</th>
+                <th>Nome Completo</th>
+                <th>Distrito Vinculado (DMC)</th>
+                <th>E-mail</th>
+                <th>Telefone</th>
+                <th>Cadastro</th>
+                <th>Status</th>
+                <th>Motivo de Inativação / Histórico</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (tec of rep.tecnicos; track tec.id) {
+                <tr [class.row--inativo]="tec.status !== 'ATIVO'">
+                  <td><code>{{ tec.matricula }}</code></td>
+                  <td><strong>{{ tec.nomeCompleto }}</strong></td>
+                  <td>
+                    <span class="chip">{{ tec.distritoNome ?? 'DMC #' + tec.distritoId }}</span>
+                  </td>
+                  <td>{{ tec.email }}</td>
+                  <td>{{ tec.telefone ?? '—' }}</td>
+                  <td>{{ tec.dataCadastro | dataBr }}</td>
+                  <td>
+                    <app-status-badge [status]="tec.status" [hint]="tec.motivoInativacao" />
+                  </td>
+                  <td>
+                    @if (tec.status !== 'ATIVO' && tec.motivoInativacao) {
+                      <span style="color: var(--danger); font-size: 0.82rem;">
+                        {{ tec.motivoInativacao }}
+                      </span>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </article>
+  }
+}
