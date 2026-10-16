@@ -50,7 +50,9 @@
               <td>{{ ogm.diretorGeralNome ?? '—' }}</td>
               <td class="cell-stack">
                 <span>{{ ogm.emailCentral ?? '—' }}</span>
-                <small>{{ ogm.telefoneCentral ?? '' }}</small>
+                @if (ogm.telefoneCentral) {
+                  <small>{{ ogm.telefoneCentral }}</small>
+                }
               </td>
               <td>
                 @if (ogm.setores.length === 0) {

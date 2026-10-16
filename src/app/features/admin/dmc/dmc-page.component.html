@@ -61,7 +61,9 @@
               <td>{{ dmc.meteorologistaChefeNome ?? 'Não atribuído' }}</td>
               <td class="cell-stack">
                 <span>{{ dmc.emailCentral ?? '—' }}</span>
-                <small>{{ dmc.telefoneCentral ?? '' }}</small>
+                @if (dmc.telefoneCentral) {
+                  <small>{{ dmc.telefoneCentral }}</small>
+                }
               </td>
               <td>{{ dmc.dataCadastro | dataBr }}</td>
               <td><app-status-badge [status]="dmc.status" /></td>

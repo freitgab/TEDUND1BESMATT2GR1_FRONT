@@ -84,6 +84,7 @@ h1, h2, h3 { line-height: 1.2; color: var(--primary-dark); }
   th, td {
     padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border);
+    vertical-align: middle;
   }
   th {
     background: #f8fafc;
@@ -92,6 +93,7 @@ h1, h2, h3 { line-height: 1.2; color: var(--primary-dark); }
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;
+    vertical-align: middle;
   }
   tbody tr:last-child td { border-bottom: none; }
   tbody tr:hover { background: #fafcfe; }
@@ -100,34 +102,69 @@ h1, h2, h3 { line-height: 1.2; color: var(--primary-dark); }
   opacity: 0.65;
   background: #fdfdfd;
 }
+
+/* Ações na tabela: alinhadas à direita sem quebrar a altura e borda da linha */
 .table__actions {
   text-align: right;
   white-space: nowrap;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.4rem;
+  vertical-align: middle;
+
+  .btn {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+
+    &:first-child {
+      margin-left: 0;
+    }
+  }
 }
-.cell-stack {
+
+/* Células com múltiplos textos empilhados: preserva comportamento de table-cell */
+td.cell-stack {
+  vertical-align: middle;
+
+  > strong, > span, > code {
+    display: block;
+  }
+  > small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin-top: 0.2rem;
+    line-height: 1.35;
+  }
+  > .chips {
+    margin-top: 0.35rem;
+  }
+}
+
+/* Divs internas com pilha de texto */
+div.cell-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  small { color: var(--muted); font-size: 0.78rem; }
+  gap: 0.2rem;
+  small { color: var(--muted); font-size: 0.78rem; line-height: 1.3; }
 }
 
 /* Chips / Tags */
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.35rem;
+  align-items: center;
 }
 .chip {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
   background: #eef4fb;
   color: var(--primary);
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.25;
+  vertical-align: middle;
 }
 .chip--more {
   background: #e2e8f0;

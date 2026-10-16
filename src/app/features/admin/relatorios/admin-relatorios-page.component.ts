@@ -33,6 +33,7 @@ export class AdminRelatoriosPageComponent {
 
   setAba(aba: AbaRelatorio): void {
     this.abaAtiva.set(aba);
+    this.loadError.set(null);
     if (aba === 'ESTRUTURA' && !this.relatorioEstrutura()) {
       this.carregarEstrutura();
     } else if (aba === 'TECNICOS' && !this.relatorioTecnicos()) {
